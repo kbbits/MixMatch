@@ -57,7 +57,7 @@ public:
 	void Highlight(bool bOn);
 
 	UFUNCTION(BlueprintCallable)
-	FIntPoint GetCoords();
+	FIntPoint GetCoords() const;
 
 	/* Get the world location for this cell's block */
 	UFUNCTION(BlueprintCallable)

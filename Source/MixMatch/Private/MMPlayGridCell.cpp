@@ -56,7 +56,7 @@ void AMMPlayGridCell::Highlight(bool bOn)
 }
 
 
-FIntPoint AMMPlayGridCell::GetCoords()
+FIntPoint AMMPlayGridCell::GetCoords() const
 {
 	return FIntPoint(X, Y);
 }

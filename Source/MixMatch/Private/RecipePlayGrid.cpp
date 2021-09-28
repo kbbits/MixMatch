@@ -46,5 +46,5 @@ const FCraftingRecipe& ARecipePlayGrid::GetRecipe()
 
 bool ARecipePlayGrid::GetRandomBlockTypeNameForCell_Implementation(const AMMPlayGridCell* Cell, FName& FoundBlockTypeName)
 {
-
+	return Super::GetRandomBlockTypeNameForCell_Implementation(Cell, FoundBlockTypeName);
 }

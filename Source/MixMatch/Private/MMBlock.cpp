@@ -88,7 +88,6 @@ bool AMMBlock::MoveTick_Implementation(float DeltaSeconds)
 		if (TargetDistance <= 0.1f)
 		{
 			SetActorLocation(OwningGridCell->GetBlockLocation());
-			BlockState = EMMGridState::Normal;
 			MoveFinished();
 		}
 		else
@@ -108,7 +107,6 @@ bool AMMBlock::MoveTick_Implementation(float DeltaSeconds)
 	}
 	else
 	{
-		BlockState = EMMGridState::Normal;
 		MoveFinished();
 	}
 	return true;
@@ -118,7 +116,6 @@ bool AMMBlock::MoveTick_Implementation(float DeltaSeconds)
 bool AMMBlock::MatchTick_Implementation(float DeltaSeconds)
 {
 	// Base class does nothing but change state to normal and call MatchFinished.
-	BlockState = EMMGridState::Normal;
 	if (CurrentMatch) {
 		MatchFinished(*CurrentMatch);
 	}
@@ -164,7 +161,6 @@ bool AMMBlock::SettleTick_Implementation(float DeltaSeconds)
 		if (TargetDistance <= 1.f)
 		{
 			SetActorLocation(OwningGridCell->GetBlockLocation());
-			BlockState = EMMGridState::Normal;
 			SettleFinished();
 		}
 		else
@@ -185,7 +181,6 @@ bool AMMBlock::SettleTick_Implementation(float DeltaSeconds)
 	else
 	{
 		// Move not successful
-		BlockState = EMMGridState::Normal;
 		SettleFinished();
 	}
 	return true;
@@ -384,7 +379,7 @@ void AMMBlock::OnUnsettle_Implementation()
 			SettleCell = FindSettleCell();
 			if (SettleCell)
 			{
-				MoveToCell = SettleCell;
+				//MoveToCell = SettleCell;
 				bMoveSuccessful = true;
 			}
 		}
@@ -401,7 +396,7 @@ void AMMBlock::OnUnsettle_Implementation()
 	}
 	if (SettleCell)
 	{
-		MoveToCell = SettleCell;
+		//MoveToCell = SettleCell;
 		bUnsettled = true;
 		bMoveSuccessful = true;
 		if (SettleFallDelay > 0) {
@@ -413,10 +408,9 @@ void AMMBlock::OnUnsettle_Implementation()
 	}
 	else 
 	{
-		MoveToCell = nullptr;
+		//MoveToCell = nullptr;
 		bMoveSuccessful = false;
 		BlockState = EMMGridState::Settling;
-		//MoveFinished();
 	}
 }
 
@@ -427,18 +421,18 @@ void AMMBlock::OnSettle_Implementation()
 		return;
 	}
 	GetWorldTimerManager().ClearTimer(SettleFallDelayHandle);
-	if (bMoveSuccessful && MoveToCell) {
+	if (bMoveSuccessful) { // && MoveToCell) {
 		AMMPlayGridCell* UnsettleAboveCell = OwningGridCell;
 		if (!bFallingIntoGrid) 
 		{
 			// Check settle cell again.
 			AMMPlayGridCell* SettleCell = FindSettleCell();
 			if (SettleCell) {
-				MoveToCell = SettleCell;
+				//MoveToCell = SettleCell;
 				if (OwningGridCell->CurrentBlock == this) {
 					OwningGridCell->CurrentBlock = nullptr;
 				}
-				OwningGridCell = MoveToCell;
+				OwningGridCell = SettleCell;
 				OwningGridCell->CurrentBlock = this;
 			}
 		}		
@@ -450,15 +444,15 @@ void AMMBlock::OnSettle_Implementation()
 		}		
 	}
 	else {
-		BlockState = EMMGridState::Normal;
 		MoveFinished();
 	}
-	MoveToCell = nullptr;	
+	//MoveToCell = nullptr;
 }
 
 
 void AMMBlock::MoveFinished_Implementation()
 {
+	BlockState = EMMGridState::Normal;
 	if (Grid()) {
 		Grid()->BlockFinishedMoving(this, bMoveSuccessful);
 	}
@@ -469,6 +463,7 @@ void AMMBlock::MatchFinished_Implementation(const FBlockMatch& Match)
 {
 	bMatchFinished = true;
 	CurrentMatch = nullptr;
+	BlockState = EMMGridState::Normal;
 	if (Grid())	{
 		Grid()->BlockFinishedMatch(this, Match);
 	}	
@@ -478,6 +473,7 @@ void AMMBlock::MatchFinished_Implementation(const FBlockMatch& Match)
 void AMMBlock::SettleFinished_Implementation()
 {
 	bUnsettled = false;
+	BlockState = EMMGridState::Normal;
 	if (Grid()) {
 		Grid()->BlockFinishedMoving(this, bMoveSuccessful);
 	}

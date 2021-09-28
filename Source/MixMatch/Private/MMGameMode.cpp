@@ -28,6 +28,7 @@ AMMGameMode::AMMGameMode()
 void AMMGameMode::BeginPlay()
 {
 	InitCachedGoodsTypes();
+	InitWeightedBlockTypeSets();
 }
 
 FGoodsType AMMGameMode::GetGoodsData(const FName& GoodsName, bool& bFound)
@@ -67,7 +68,14 @@ bool AMMGameMode::GetBlockTypeByName(const FName& BlockTypeName, FBlockType& Fou
 bool AMMGameMode::GetRandomBlockTypeNameForCell(const AMMPlayGridCell* Cell, FName& FoundBlockTypeName)
 {
 	InitCachedBlockTypes();
-	InitWeightedBlockTypes();
+	if (Cell->OwningGrid == nullptr) {
+		UE_LOG(LogMMGame, Error, TEXT("GameMode::GetRandomBlockTypeNameForCell - Cell at %s has null grid"), *(Cell->GetCoords()).ToString());
+		return false;
+	}
+	if (!InitWeightedBlockTypes(Cell->OwningGrid->GetBlockTypeSetName())) {
+		UE_LOG(LogMMGame, Error, TEXT("GameMode::GetRandomBlockTypeNameForCell - Could not find block type set with name %s"), *Cell->OwningGrid->GetBlockTypeSetName().ToString());
+		return false;
+	}
 	float WeightSum = 0.f;
 	float PickedWeight = FMath::RandRange(0.f, CurrentTotalBlockWeight);
 	for (FWeightedBlockType WBT : CurrentWeightedBlockTypes)
@@ -236,19 +244,44 @@ void AMMGameMode::InitCachedBlockTypes(bool bForceRefresh)
 }
 
 
-void AMMGameMode::InitWeightedBlockTypes(bool bForceRefresh)
+void AMMGameMode::InitWeightedBlockTypeSets(bool bForceRefresh)
 {
-	if (!(CurrentWeightedBlockTypes.Num() == 0 || bForceRefresh)) { return; }
-	CurrentWeightedBlockTypes.Empty(BlockWeightsTable->GetRowMap().Num());
+	if (!(CurrentWeightedBlockTypeSets.Num() == 0 || bForceRefresh)) { return; }
+	CurrentWeightedBlockTypeSets.Empty(BlockWeightsTable->GetRowMap().Num());
 	CurrentTotalBlockWeight = 0.f;
 	for (const TPair<FName, uint8*>& It : BlockWeightsTable->GetRowMap())
 	{
-		FWeightedBlockType WBlockType = *reinterpret_cast<FWeightedBlockType*>(It.Value);
-		if (WBlockType.Weight > 0.f) 
-		{
-			CurrentTotalBlockWeight += WBlockType.Weight;
-			CurrentWeightedBlockTypes.Add(WBlockType);
+		FWeightedBlockTypeSet WBlockTypeSet = *reinterpret_cast<FWeightedBlockTypeSet*>(It.Value);
+		if (WBlockTypeSet.WeightedBlockTypes.Num() > 0) {
+			CurrentWeightedBlockTypeSets.Add(WBlockTypeSet.Name, WBlockTypeSet);
 		}
+	}
+}
+
+
+bool AMMGameMode::InitWeightedBlockTypes(const FName& BlockTypeSetName, bool bForceRefresh)
+{
+	if (BlockTypeSetName == CurrentWeightedBlockTypeSetName && !(CurrentWeightedBlockTypes.Num() == 0 || bForceRefresh)) {
+		return true;
+	}
+	InitWeightedBlockTypeSets();
+	CurrentTotalBlockWeight = 0.f;
+	CurrentWeightedBlockTypes.Empty();
+	if (CurrentWeightedBlockTypeSets.Contains(BlockTypeSetName))
+	{		
+		CurrentWeightedBlockTypeSetName = BlockTypeSetName;
+		CurrentWeightedBlockTypes.Append(CurrentWeightedBlockTypeSets[BlockTypeSetName].WeightedBlockTypes);
+		for (FWeightedBlockType WBT : CurrentWeightedBlockTypes)
+		{
+			if (WBT.Weight > 0.f)			{
+				CurrentTotalBlockWeight += WBT.Weight;
+			}
+		}
+		return true;
+	}
+	else {
+		UE_LOG(LogMMGame, Error, TEXT("MMGameMode::InitWeightedBlockTypes - Block type set with name %s not found in weighted block type sets table."), *BlockTypeSetName.ToString());
+		return false;
 	}
 }
 

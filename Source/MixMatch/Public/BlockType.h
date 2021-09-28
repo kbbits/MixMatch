@@ -199,3 +199,18 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame)
 	FName BlockTypeName;
 };
+
+
+USTRUCT(BlueprintType)
+struct FWeightedBlockTypeSet : public FTableRowBase
+{
+	GENERATED_BODY()
+
+public:
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame)
+	FName Name;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame)
+	TArray<FWeightedBlockType> WeightedBlockTypes;
+};

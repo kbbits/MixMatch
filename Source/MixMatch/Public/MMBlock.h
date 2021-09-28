@@ -105,6 +105,7 @@ public:
 	UFUNCTION(BlueprintNativeEvent)
 	bool MoveTick(float DeltaSeconds);
 
+	// Base class does nothing but change state to normal and call MatchFinished.
 	UFUNCTION(BlueprintNativeEvent)
 	bool MatchTick(float DeltaSeconds);
 

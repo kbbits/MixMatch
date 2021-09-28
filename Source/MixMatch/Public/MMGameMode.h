@@ -48,7 +48,14 @@ protected:
 	class UGoodsDropper* GoodsDropper;
 
 	UPROPERTY()
+	FName CurrentWeightedBlockTypeSetName;
+
+	UPROPERTY()
+	TMap<FName, FWeightedBlockTypeSet> CurrentWeightedBlockTypeSets;
+
+	UPROPERTY()
 	TArray<FWeightedBlockType> CurrentWeightedBlockTypes;
+
 
 	float CurrentTotalBlockWeight;
 
@@ -85,7 +92,9 @@ protected:
 
 	void InitCachedBlockTypes(bool bForceRefresh = false);
 
-	void InitWeightedBlockTypes(bool bForceRefresh = false);
+	void InitWeightedBlockTypeSets(bool bForceRefresh = false);
+
+	bool InitWeightedBlockTypes(const FName& BlockTypeSetName, bool bForceRefresh = false);
 
 	void InitCachedGoodsTypes(bool bForceRefresh = false);
 

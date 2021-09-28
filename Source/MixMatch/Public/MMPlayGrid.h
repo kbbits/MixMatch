@@ -36,6 +36,9 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 	TSubclassOf<AMMPlayGridCell> CellClass;
 
+	UPROPERTY(EditAnywhere)
+	FName BlockTypeSetName;
+
 	/** If true, blocks will be scaled to fill BlockSize - BlockMargin */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 	bool bScaleBlocks;
@@ -82,6 +85,8 @@ protected:
 	UPROPERTY()
 	TArray<USoundBase*> PlaySoundQueue;
 
+	bool bAllMatchesFinished = false;
+
 private:
 
 	/** Scene root component */
@@ -99,6 +104,12 @@ public:
 
 	UFUNCTION(BlueprintCallable)
 	int32 GetMinimumMatchSize();
+
+	UFUNCTION(BlueprintCallable)
+	bool SetBlockTypeSetName(const FName& NewBlockTypeSetName);
+
+	UFUNCTION(BlueprintPure)
+	FName GetBlockTypeSetName();
 
 	UFUNCTION(BlueprintCallable, CallInEditor)
 	void SpawnGrid();
@@ -181,6 +192,8 @@ public:
 	void BlockFinishedMoving(AMMBlock* Block, bool bBlockMoved = true);
 	
 	void BlockFinishedMatch(AMMBlock* Block, const FBlockMatch& Match);
+
+	void AllMatchesFinished();
 	
 	UFUNCTION(BlueprintCallable)
 	void PlaySounds(const TArray<USoundBase*> Sounds);
