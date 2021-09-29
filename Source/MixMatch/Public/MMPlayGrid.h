@@ -97,6 +97,12 @@ private:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
 	class UTextRenderComponent* ScoreText;
 
+#if WITH_EDITORONLY_DATA
+	/** Actor billboard */
+	UPROPERTY(VisibleDefaultsOnly, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
+	class UBillboardComponent* Billboard;
+#endif
+
 public:
 	AMMPlayGrid();
 
@@ -141,6 +147,10 @@ public:
 
 	UFUNCTION(BlueprintPure)
 	FVector GridCoordsToWorldLocation(const FIntPoint& GridCoords);
+
+	/** Returns coordinates of grid cell in local space (relative to the grid ). Note: grid coord Y axis is "up" the grid, i.e. local Z axis */
+	UFUNCTION(BlueprintPure)
+	FVector GridCoordsToLocalLocation(const FIntPoint& GridCoords);
 
 	UFUNCTION(BlueprintPure)
 	FVector GridFloatCoordsToWorldLocation(const FVector2D& GridCoords);

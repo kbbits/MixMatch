@@ -86,13 +86,16 @@ bool AMMGameMode::GetRandomBlockTypeNameForCell(const AMMPlayGridCell* Cell, FNa
 			FBlockType* pBlockType = CachedBlockTypes.Find(WBT.BlockTypeName);
 			if (pBlockType) {
 				FoundBlockTypeName = pBlockType->Name;
+				UE_LOG(LogMMGame, Log, TEXT("MMGameMode::GetRandomBlockTypeNameForCell - Got block type %s from BlockTypeSet %s"), *FoundBlockTypeName.ToString(), *CurrentWeightedBlockTypeSetName.ToString());
 				return true;
 			}
 			else {
+				UE_LOG(LogMMGame, Error, TEXT("MMGameMode::GetRandomBlockTypeNameForCell - Block type %s not found in BlockTypeSet %s"), *WBT.BlockTypeName.ToString(), *CurrentWeightedBlockTypeSetName.ToString());
 				return false;
 			}
 		}
 	}
+	UE_LOG(LogMMGame, Error, TEXT("MMGameMode::GetRandomBlockTypeNameForCell - No weighted block type found in BlockTypeSet %s"), *CurrentWeightedBlockTypeSetName.ToString());
 	return false;
 }
 
@@ -228,6 +231,12 @@ int32 AMMGameMode::GetScoreForMatch(const FBlockMatch& Match)
 }
 
 
+bool AMMGameMode::SetBlockTypeSetName(const FName& BlockTypeSetName)
+{
+	return InitWeightedBlockTypes(BlockTypeSetName);
+}
+
+
 void AMMGameMode::InitCachedBlockTypes(bool bForceRefresh)
 {
 	if (!(CachedBlockTypes.Num() == 0 || bForceRefresh)) { return; }
@@ -269,6 +278,7 @@ bool AMMGameMode::InitWeightedBlockTypes(const FName& BlockTypeSetName, bool bFo
 	CurrentWeightedBlockTypes.Empty();
 	if (CurrentWeightedBlockTypeSets.Contains(BlockTypeSetName))
 	{		
+		UE_LOG(LogMMGame, Log, TEXT("MMGameMode::InitWeightedBlockTypes - Using BlockTypeSet %s"), *BlockTypeSetName.ToString());
 		CurrentWeightedBlockTypeSetName = BlockTypeSetName;
 		CurrentWeightedBlockTypes.Append(CurrentWeightedBlockTypeSets[BlockTypeSetName].WeightedBlockTypes);
 		for (FWeightedBlockType WBT : CurrentWeightedBlockTypes)

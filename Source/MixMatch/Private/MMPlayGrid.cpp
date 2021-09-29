@@ -3,6 +3,7 @@
 #include "MMPlayGrid.h"
 #include "Engine/World.h"
 #include "Components/TextRenderComponent.h"
+#include "Components/BillboardComponent.h"
 #include "Kismet/GameplayStatics.h"
 #include "..\MixMatch.h"
 #include "MMMath.h"
@@ -17,16 +18,22 @@
 
 AMMPlayGrid::AMMPlayGrid()
 {
-	// Create dummy root scene component
+	// Create root scene component
 	SceneRoot = CreateDefaultSubobject<USceneComponent>(TEXT("SceneRoot"));
 	RootComponent = SceneRoot;
 
 	// Create score text component
 	ScoreText = CreateDefaultSubobject<UTextRenderComponent>(TEXT("ScoreText"));
-	ScoreText->SetRelativeLocation(FVector(0.f,-20.f,0.f));
-	ScoreText->SetRelativeRotation(FRotator(0.f,0.f,0.f));
+	ScoreText->SetRelativeLocation(FVector(0.f,0.f,-30.f));
+	ScoreText->SetRelativeRotation(FRotator(0.f,90.f,0.f));
 	ScoreText->SetText(FText::Format(LOCTEXT("ScoreFmt", "Score: {0}"), FText::AsNumber(0)));
 	ScoreText->SetupAttachment(SceneRoot);
+
+#if WITH_EDITORONLY_DATA
+	// Billboard
+	Billboard = CreateDefaultSubobject<UBillboardComponent>(TEXT("Billboard"));
+	Billboard->SetupAttachment(SceneRoot);
+#endif
 
 	// Set defaults
 	CellClass = AMMPlayGridCell::StaticClass();
@@ -145,9 +152,9 @@ void AMMPlayGrid::SpawnGrid()
 		FVector Rescale = FVector(1.f, 1.f, 1.f);
 
 		// Make position vector, offset from Grid location
-		const FVector CellLocation = GridCoordsToWorldLocation(FIntPoint(X, Y)) + FVector(0.f, -CellBackgroundOffset, 0.f);
+		const FVector CellLocation = GridCoordsToLocalLocation(FIntPoint(X, Y)) + FVector(0.f, -CellBackgroundOffset, 0.f);
 		// Spawn a block
-		AMMPlayGridCell* NewCell = GetWorld()->SpawnActor<AMMPlayGridCell>(CellClass, CellLocation, FRotator(0, 0, 0), SpawnParams);
+		AMMPlayGridCell* NewCell = GetWorld()->SpawnActor<AMMPlayGridCell>(CellClass, FVector::ZeroVector, GetActorRotation(), SpawnParams);
 		// Set up cell properties
 		if (NewCell != nullptr)
 		{
@@ -179,6 +186,8 @@ void AMMPlayGrid::SpawnGrid()
 				Rescale = Rescale.X < Rescale.Z ? Rescale.X * FVector::OneVector : Rescale.Z * FVector::OneVector;
 				NewCell->GetCellMesh()->SetWorldScale3D(NewCell->GetCellMesh()->GetRelativeScale3D() * Rescale);
 			}
+			NewCell->AttachToActor(this, FAttachmentTransformRules::SnapToTargetIncludingScale);
+			NewCell->SetActorRelativeLocation(CellLocation, false, nullptr, ETeleportType::ResetPhysics);
 			// Add it to our cell array
 			Cells.Add(NewCell);
 		}
@@ -241,6 +250,7 @@ bool AMMPlayGrid::AddBlockInCell(AMMPlayGridCell* Cell, const FName& BlockTypeNa
 		UE_LOG(LogMMGame, Error, TEXT("MMPlayGrid::AddBlockInCell - Cannot get game mode"));
 		return false;
 	}
+	FVector BlockLocation = Cell->GetBlockLocalLocation() + FVector(0.f, 0.f, OffsetAboveCell);
 	FActorSpawnParameters SpawnParams;
 	SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 	SpawnParams.Owner = this;
@@ -251,8 +261,8 @@ bool AMMPlayGrid::AddBlockInCell(AMMPlayGridCell* Cell, const FName& BlockTypeNa
 		TSubclassOf<AMMBlock> BlockClass = BlockType.BlockClass.LoadSynchronous();
 		AMMBlock* NewBlock = GetWorld()->SpawnActor<AMMBlock>(
 			BlockClass, 
-			GridCoordsToWorldLocation(Cell->GetCoords()) + FVector(0.f, 0.f, OffsetAboveCell), 
-			FRotator(0.f, 0.f, 0.f), 
+			FVector::ZeroVector, 
+			GetActorRotation(), 
 			SpawnParams
 		);
 		if (NewBlock)
@@ -287,6 +297,8 @@ bool AMMPlayGrid::AddBlockInCell(AMMPlayGridCell* Cell, const FName& BlockTypeNa
 				Rescale = Rescale.X < Rescale.Z ? Rescale.X * FVector::OneVector : Rescale.Z * FVector::OneVector;
 				NewBlock->GetBlockMesh()->SetWorldScale3D(NewBlock->GetBlockMesh()->GetRelativeScale3D() * Rescale);
 			}
+			NewBlock->AttachToActor(this, FAttachmentTransformRules::SnapToTargetIncludingScale);
+			NewBlock->SetActorRelativeLocation(BlockLocation, false, nullptr, ETeleportType::ResetPhysics);
 			Blocks.Add(NewBlock);
 			BlocksToCheck.AddUnique(NewBlock);
 			if (bAllowUnsettle) {
@@ -308,8 +320,9 @@ void AMMPlayGrid::AddRandomBlockInCell(AMMPlayGridCell* Cell, const float Offset
 	if (Cell == nullptr || Cell->CurrentBlock != nullptr) { return; }
 	FName BlockTypeName;
 	bool bTryAgain = true;
+	const int32 MaxTries = 50;
 	int32 Tries = 0;
-	while (bTryAgain && Tries < 50)
+	while (bTryAgain && Tries < MaxTries)
 	{
 		Tries++;
 		bTryAgain = false;
@@ -329,10 +342,14 @@ void AMMPlayGrid::AddRandomBlockInCell(AMMPlayGridCell* Cell, const float Offset
 						if (CheckForMatches(Cell->CurrentBlock, BlockMatchHoriz, BlockMatchVert, false))
 						{
 							//UE_LOG(LogMMGame, Log, TEXT("   New block matches"));
+							Blocks.RemoveSingle(Cell->CurrentBlock);
 							BlocksToCheck.RemoveSingle(Cell->CurrentBlock);
 							UnsettledBlocks.RemoveSingle(Cell->CurrentBlock);
 							Cell->CurrentBlock->DestroyBlock();
 							bTryAgain = true;
+							if (Tries == MaxTries) {
+								UE_LOG(LogMMGame, Log, TEXT("MMPlayGrid::AddRandomBlockInCell - Exceeded max tries to find an unmatching block type in cell %s"), *Cell->GetCoords().ToString());
+							}
 						}
 						else {
 							// Block was added with no match. Then unsettle the block now if unsettling is allowed.
@@ -356,6 +373,7 @@ void AMMPlayGrid::FillGridBlocks()
 	{
 		AddRandomBlockInCell(Cells[i], 0.f, false, true);
 	}
+	UE_LOG(LogMMGame, Log, TEXT("MMPlayGrid::FillGridBlocks - Added %d blocks to grid"), Blocks.Num());
 }
 
 
@@ -386,7 +404,16 @@ FVector AMMPlayGrid::GridCoordsToWorldLocation(const FIntPoint& GridCoords)
 	float BlockSpacingY = BlockSize.Z + CellBackgroundMargin; // the grid's Y axis is actually world Z;
 	float XOffset = (GridCoords.X * BlockSpacingX) + (BlockSpacingX / 2.f);
 	float YOffset = (GridCoords.Y * BlockSpacingY) + (BlockSpacingY / 2.f);
-	return GetActorLocation() + FVector(XOffset, 0.f, YOffset); // World Z is grid's Y
+	return GetActorTransform().InverseTransformPosition(FVector(XOffset, 0.f, YOffset)); 
+}
+
+FVector AMMPlayGrid::GridCoordsToLocalLocation(const FIntPoint& GridCoords)
+{
+	float BlockSpacingX = BlockSize.X + CellBackgroundMargin;
+	float BlockSpacingY = BlockSize.Z + CellBackgroundMargin; // the grid's Y axis is actually local Z;
+	float XOffset = (GridCoords.X * BlockSpacingX) + (BlockSpacingX / 2.f);
+	float YOffset = (GridCoords.Y * BlockSpacingY) + (BlockSpacingY / 2.f);
+	return FVector(XOffset, 0.f, YOffset); 
 }
 
 FVector AMMPlayGrid::GridFloatCoordsToWorldLocation(const FVector2D& GridCoords)

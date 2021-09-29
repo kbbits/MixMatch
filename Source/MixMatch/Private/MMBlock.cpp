@@ -87,7 +87,7 @@ bool AMMBlock::MoveTick_Implementation(float DeltaSeconds)
 		// Check if we're done settling/moving
 		if (TargetDistance <= 0.1f)
 		{
-			SetActorLocation(OwningGridCell->GetBlockLocation());
+			SetActorRelativeLocation(OwningGridCell->GetBlockLocalLocation());
 			MoveFinished();
 		}
 		else
@@ -100,9 +100,9 @@ bool AMMBlock::MoveTick_Implementation(float DeltaSeconds)
 			if (IsValid(MoveCurve)) {
 				MoveSpeed = MoveSpeed * MoveCurve->GetFloatValue(PercentMoveComplete());
 			}
-			FVector DirVector = OwningGridCell->GetBlockLocation() - GetActorLocation();
+			FVector DirVector = OwningGridCell->GetBlockLocalLocation() - GetRelativeLocation();
 			DirVector.Normalize(.002);
-			SetActorLocation(GetActorLocation() + (FMath::Min(MoveSpeed * DeltaSeconds, TargetDistance) * DirVector));
+			SetActorRelativeLocation(GetRelativeLocation() + (FMath::Min(MoveSpeed * DeltaSeconds, TargetDistance) * DirVector));
 		}
 	}
 	else
@@ -160,7 +160,7 @@ bool AMMBlock::SettleTick_Implementation(float DeltaSeconds)
 		// If we are still near our settle target, finsh settle movement
 		if (TargetDistance <= 1.f)
 		{
-			SetActorLocation(OwningGridCell->GetBlockLocation());
+			SetActorRelativeLocation(OwningGridCell->GetBlockLocalLocation());
 			SettleFinished();
 		}
 		else
@@ -173,9 +173,9 @@ bool AMMBlock::SettleTick_Implementation(float DeltaSeconds)
 			if (IsValid(MoveCurve)) {
 				MoveSpeed = MoveSpeed * MoveCurve->GetFloatValue(PercentMoveComplete());
 			}
-			FVector DirVector = OwningGridCell->GetBlockLocation() - GetActorLocation();
+			FVector DirVector = OwningGridCell->GetBlockLocalLocation() - GetRelativeLocation();
 			DirVector.Normalize(.002);
-			SetActorLocation(GetActorLocation() + (FMath::Min(MoveSpeed * DeltaSeconds, TargetDistance) * DirVector));
+			SetActorRelativeLocation(GetRelativeLocation() + (FMath::Min(MoveSpeed * DeltaSeconds, TargetDistance) * DirVector));
 		}
 	}
 	else
@@ -271,7 +271,7 @@ AMMPlayGridCell* AMMBlock::FindSettleCell()
 
 float AMMBlock::DistanceToCell()
 {
-	return FVector::Distance(GetActorLocation(), OwningGridCell->GetBlockLocation());
+	return FVector::Distance(GetRelativeLocation(), Grid()->GridCoordsToLocalLocation(OwningGridCell->GetCoords()));
 }
 
 
@@ -477,6 +477,16 @@ void AMMBlock::SettleFinished_Implementation()
 	if (Grid()) {
 		Grid()->BlockFinishedMoving(this, bMoveSuccessful);
 	}
+}
+
+
+FVector AMMBlock::GetRelativeLocation()
+{
+	if (Grid() == nullptr) {
+		return FVector::ZeroVector;
+	}
+	return Grid()->GetTransform().InverseTransformPosition(GetActorLocation());
+	//return GetActorLocation()- Grid()->GetActorLocation();
 }
 
 

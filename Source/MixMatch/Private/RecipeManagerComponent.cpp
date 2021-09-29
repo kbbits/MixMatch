@@ -28,12 +28,26 @@ FCraftingRecipe URecipeManagerComponent::GetRecipe(const FName& RecipeName, bool
 		bFound = true;
 		return *AllRecipeData.Find(RecipeName);
 	}
+	UE_LOG(LogMMGame, Error, TEXT("RecipeManager::GetRecipe - Recipe name not found: %s"), *RecipeName.ToString());
 	bFound = false;
 	return FCraftingRecipe();
 }
 
 
-bool URecipeManagerComponent::GetBaseGoodsForRecipe(const FName& RecipeName, TArray<FGoodsQuantity>& BaseGoods)
+FCraftingRecipe URecipeManagerComponent::GetRecipeForGoodsName(const FName& GoodsName, bool& bFound)
+{
+	FName* ProducingRecipeName = GoodsToRecipeMap.Find(GoodsName);
+	if (ProducingRecipeName != nullptr) 
+	{
+		return GetRecipe(*ProducingRecipeName, bFound);
+	}
+	UE_LOG(LogMMGame, Error, TEXT("RecipeManager::GetRecipeForGoodsName - No producing recipe found for goods name: %s"), *GoodsName.ToString());
+	bFound = false;
+	return FCraftingRecipe();
+}
+
+
+bool URecipeManagerComponent::GetBaseIngredientsForRecipe(const FName& RecipeName, TArray<FGoodsQuantity>& BaseGoods)
 {
 	AMMGameMode* GameMode = Cast<AMMGameMode>(UGameplayStatics::GetGameMode(this));
 	TArray<FGoodsQuantity> TmpBaseGoods;
@@ -41,14 +55,14 @@ bool URecipeManagerComponent::GetBaseGoodsForRecipe(const FName& RecipeName, TAr
 	bool bFound;
 	BaseGoods.Empty();
 	if (!GameMode) {
-		UE_LOG(LogMMGame, Error, TEXT("RecipeManager::GetBaseGoodsForRecipe - Could not get GameMode"));
+		UE_LOG(LogMMGame, Error, TEXT("RecipeManager::GetBaseIngredientsForRecipe - Could not get GameMode"));
 		return false;
 	}
 	InitCraftingRecipes();
 	Recipe = GetRecipe(RecipeName, bFound);
 	if (!bFound)
 	{
-		UE_LOG(LogMMGame, Error, TEXT("RecipeManager::GetBaseGoodsForRecipe - Could not find recipe: %s"), *RecipeName.ToString());
+		UE_LOG(LogMMGame, Error, TEXT("RecipeManager::GetBaseIngredientsForRecipe - Could not find recipe: %s"), *RecipeName.ToString());
 		return false;
 	}
 	for (FGoodsQuantity GoodsInput : Recipe.CraftingInputs)
@@ -66,24 +80,66 @@ bool URecipeManagerComponent::GetBaseGoodsForRecipe(const FName& RecipeName, TAr
 				if (ProducingRecipeName)
 				{
 					TArray<FGoodsQuantity> ProducingRecipeGoods;
-					if (GetBaseGoodsForRecipe(*ProducingRecipeName, ProducingRecipeGoods))
+					if (GetBaseIngredientsForRecipe(*ProducingRecipeName, ProducingRecipeGoods))
 					{
 						TmpBaseGoods.Append(UGoodsFunctionLibrary::MultiplyGoodsQuantities(ProducingRecipeGoods, GoodsInput.Quantity));
 					}					
 				}
 				else {
-					UE_LOG(LogMMGame, Error, TEXT("RecipeManager::GetBaseGoodsForRecipe - Found no producing recipe for goods: %s"), *InputGoodsData.Name.ToString());
+					UE_LOG(LogMMGame, Error, TEXT("RecipeManager::GetBaseIngredientsForRecipe - Found no producing recipe for goods: %s"), *InputGoodsData.Name.ToString());
 				}
 			}
 		}
 		else {
-			UE_LOG(LogMMGame, Error, TEXT("RecipeManager::GetBaseGoodsForRecipe - Input goods %s in recipe %s not found"), *GoodsInput.Name.ToString(), *Recipe.Name.ToString());
+			UE_LOG(LogMMGame, Error, TEXT("RecipeManager::GetBaseIngredientsForRecipe - Input goods %s in recipe %s not found"), *GoodsInput.Name.ToString(), *Recipe.Name.ToString());
 		}
 	}
 	BaseGoods = UGoodsFunctionLibrary::AddGoodsQuantities(TArray<FGoodsQuantity>(), TmpBaseGoods);
 	return true;
 }
 
+
+bool URecipeManagerComponent::GetGoodsForRecipeName(const FName& RecipeName, TArray<FGoodsQuantity>& OutputGoods, const float QuantityScale, const bool bExcludeBonusGoods)
+{
+	AMMGameMode* GameMode = Cast<AMMGameMode>(UGameplayStatics::GetGameMode(this));
+	if (!GameMode) {
+		UE_LOG(LogMMGame, Error, TEXT("RecipeManager::GetAverageGoodsFromRecipeName - Could not get GameMode"));
+		return false;
+	}
+	bool bFound;
+	FCraftingRecipe Recipe = GetRecipe(RecipeName, bFound);
+	if (!bFound) { 
+		UE_LOG(LogMMGame, Error, TEXT("RecipeManager::GetAverageGoodsFromRecipeName - Recipe %s not found"), *RecipeName.ToString());
+		return false; 
+	}
+	return GetGoodsForRecipe(Recipe, OutputGoods, QuantityScale, bExcludeBonusGoods);
+}
+
+bool URecipeManagerComponent::GetGoodsForRecipe(const FCraftingRecipe& Recipe, TArray<FGoodsQuantity>& OutputGoods, const float QuantityScale, const bool bExcludeBonusGoods)
+{
+	AMMGameMode* GameMode = Cast<AMMGameMode>(UGameplayStatics::GetGameMode(this));
+	if (!GameMode) {
+		UE_LOG(LogMMGame, Error, TEXT("RecipeManager::GetAverageGoodsFromRecipe - Could not get GameMode"));
+		return false;
+	}
+	OutputGoods.Empty();
+	FGoodsDropSet CraftingResults;
+	CraftingResults.GoodsChances = Recipe.CraftingResults;
+	FGoodsDropSet BonusCraftingResults;
+	if (!bExcludeBonusGoods && Recipe.BonusCraftingResults.Num() > 0.f)
+	{
+		BonusCraftingResults.GoodsChances = Recipe.BonusCraftingResults;
+		OutputGoods.Append(UGoodsFunctionLibrary::AddGoodsQuantities(
+			GameMode->GetGoodsDropper()->EvaluateGoodsDropSet(CraftingResults, QuantityScale),
+			GameMode->GetGoodsDropper()->EvaluateGoodsDropSet(BonusCraftingResults, QuantityScale)
+		));
+	}
+	else
+	{
+		OutputGoods.Append(GameMode->GetGoodsDropper()->EvaluateGoodsDropSet(CraftingResults, QuantityScale));
+	}
+	return true;
+}
 
 // Called when the game starts
 void URecipeManagerComponent::BeginPlay()
@@ -114,22 +170,23 @@ void URecipeManagerComponent::InitCraftingRecipes(bool bForceRefresh)
 		FCraftingRecipe FoundRecipe = *reinterpret_cast<FCraftingRecipe*>(It.Value);
 		AllRecipeData.Add(It.Key, FoundRecipe);
 		// Fill in the GoodsToRecipeMap
-		for (FGoodsDropChance ResultsDrops : FoundRecipe.CraftingResults)
+		//TArray<FGoodsQuantity> AllResultGoods = GameMode->GetGoodsDropper()->EvaluateGoodsDropChancePercent(ResultsDrops, 1.f);
+		TArray<FGoodsQuantity> AllResultGoods;
+		if (!GetGoodsForRecipe(FoundRecipe, AllResultGoods, 1.f, true)) {
+			UE_LOG(LogMMGame, Error, TEXT("RecipeManager::InitCraftingRecipes - Could not get goods for recipe: %s"), *FoundRecipe.Name.ToString());
+		}
+		for (FGoodsQuantity ResultGoods : AllResultGoods)
 		{
-			TArray<FGoodsQuantity> AllResultGoods = GameMode->GetGoodsDropper()->EvaluateGoodsDropChancePercent(ResultsDrops, 1.f);
-			for (FGoodsQuantity ResultGoods : AllResultGoods)
+			if (GoodsToRecipeMap.Contains(ResultGoods.Name))
 			{
-				if (GoodsToRecipeMap.Contains(ResultGoods.Name))
-				{
-					FCraftingRecipe ExistingRecipe = GetRecipe(GoodsToRecipeMap[ResultGoods.Name], bFound);
-					if (bFound && FoundRecipe.Tier < ExistingRecipe.Tier) {
-						GoodsToRecipeMap[ResultGoods.Name] = FoundRecipe.Name;
-					}
+				FCraftingRecipe ExistingRecipe = GetRecipe(GoodsToRecipeMap[ResultGoods.Name], bFound);
+				if (bFound && FoundRecipe.Tier < ExistingRecipe.Tier) {
+					GoodsToRecipeMap[ResultGoods.Name] = FoundRecipe.Name;
 				}
-				else
-				{
-					GoodsToRecipeMap.Add(ResultGoods.Name, FoundRecipe.Name);
-				}
+			}
+			else
+			{
+				GoodsToRecipeMap.Add(ResultGoods.Name, FoundRecipe.Name);
 			}
 		}
 	}

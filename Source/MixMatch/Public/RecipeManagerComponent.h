@@ -37,7 +37,7 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	TMap<FName, int32> RecipeLevels;
 
-	// Map of goods name to recipe name of recipe producing that goods.
+	// Map of goods name to recipe name of recipe producing that goods type.
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 	TMap<FName, FName> GoodsToRecipeMap;
 
@@ -46,8 +46,23 @@ public:
 	UFUNCTION(BlueprintPure)
 	FCraftingRecipe GetRecipe(const FName& RecipeName, bool& bFound);
 
+	UFUNCTION(BlueprintCallable)
+	FCraftingRecipe GetRecipeForGoodsName(const FName& GoodsName, bool& bFound);
+
+	/** Gets BaseGoods as the total goods tagged with "Resource" needed to produce all preceding ingredient goods. 
+	 *	Returns true if recipe was found, false otherwise. */
 	UFUNCTION(BlueprintPure)
-	bool GetBaseGoodsForRecipe(const FName& RecipeName, TArray<FGoodsQuantity>& BaseGoods);
+	bool GetBaseIngredientsForRecipe(const FName& RecipeName, TArray<FGoodsQuantity>& BaseGoods);
+
+	/** Gets the output goods for crafting the given recipe once. 
+	 *  Returns true if the recipe was found, false otherwise. */
+	UFUNCTION(BlueprintPure)
+	bool GetGoodsForRecipeName(const FName& RecipeName, TArray<FGoodsQuantity>& OutputGoods, const float QuantityScale = -1.f, const bool bExcludeBonusGoods = false);
+
+	/** Gets the output goods for crafting the given recipe once.
+	 *  Returns true if the recipe was found, false otherwise. */
+	UFUNCTION(BlueprintPure)
+	bool GetGoodsForRecipe(const FCraftingRecipe& RecipeName, TArray<FGoodsQuantity>& OutputGoods, const float QuantityScale = -1.f, const bool bExcludeBonusGoods = false);
 
 protected:
 

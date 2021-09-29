@@ -186,6 +186,9 @@ public:
 
 protected:
 
+	/** Gets this block's location relative to the grid. */
+	FVector GetRelativeLocation();
+
 	void UpdateBlockVis();
 
 	virtual void BeginPlay() override;

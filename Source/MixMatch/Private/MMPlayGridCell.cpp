@@ -62,11 +62,22 @@ FIntPoint AMMPlayGridCell::GetCoords() const
 }
 
 
-FVector AMMPlayGridCell::GetBlockLocation()
+FVector AMMPlayGridCell::GetBlockWorldLocation()
 {
 	if (OwningGrid) {
 		return OwningGrid->GridCoordsToWorldLocation(GetCoords());
 		//return GetActorLocation() + FVector(0.f, OwningGrid->CellBackgroundOffset, 0.f);
+	}
+	else {
+		return FVector::ZeroVector;
+	}
+}
+
+
+FVector AMMPlayGridCell::GetBlockLocalLocation()
+{
+	if (OwningGrid) {
+		return OwningGrid->GridCoordsToLocalLocation(GetCoords());
 	}
 	else {
 		return FVector::ZeroVector;

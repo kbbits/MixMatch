@@ -15,6 +15,9 @@ class ARecipePlayGrid : public AMMPlayGrid
 
 public:
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	int32 TargetBlockTypes = 4;
+
 protected:
 
 	URecipeManagerComponent* RecipeManager = nullptr;

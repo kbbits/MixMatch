@@ -88,6 +88,8 @@ public:
 	UFUNCTION(BlueprintCallable)
 	int32 GetScoreForMatch(const FBlockMatch& Match);
 
+	bool SetBlockTypeSetName(const FName& BlockTypeSetName);
+
 protected:
 
 	void InitCachedBlockTypes(bool bForceRefresh = false);

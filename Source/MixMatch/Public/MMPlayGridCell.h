@@ -61,7 +61,11 @@ public:
 
 	/* Get the world location for this cell's block */
 	UFUNCTION(BlueprintCallable)
-	FVector GetBlockLocation();
+	FVector GetBlockWorldLocation();
+
+	/* Get the local location for this cell's block, relative to grid */
+	UFUNCTION(BlueprintCallable)
+	FVector GetBlockLocalLocation();
 
 	void DestroyCell();
 };
