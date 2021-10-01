@@ -36,6 +36,7 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 	TSubclassOf<AMMPlayGridCell> CellClass;
 
+	/** The block type set this grid is currently using. Determine which block will be generated. */
 	UPROPERTY(EditAnywhere)
 	FName BlockTypeSetName;
 
@@ -43,7 +44,7 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 	bool bScaleBlocks;
 
-	/** Size of the block in unscaled, local dimensions */
+	/** Size of the block in local dimensions */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 	FVector BlockSize;
 
@@ -55,16 +56,22 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 	float CellBackgroundMargin;
 
-	/** The -Y offset behind the cell to place the background cell meshes. */
+	/** The -Y offset behind the block to place the background cell meshes. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 	float CellBackgroundOffset;
+
+	/** New blocks spawn BlockSize.Z + NewBlockDropHeight above the grid */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
+	float NewBlockDropInHeight;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite)
 	TAssetPtr<USoundBase> MoveFailSound;
 
+	/** List of matches being processed */
 	UPROPERTY()
-	TArray<FBlockMatch> BlockMatches;
+	TArray<UBlockMatch*> BlockMatches;
 
+	/** Currently selected block */
 	UPROPERTY()
 	AMMBlock* SelectedBlock;
 
@@ -78,6 +85,9 @@ protected:
 
 	UPROPERTY(BlueprintReadOnly)
 	TArray<AMMBlock*> UnsettledBlocks;
+
+	UPROPERTY(BlueprintReadOnly)
+	TArray<AMMBlock*> ToBeUnsettledBlocks;
 
 	UPROPERTY(BlueprintReadOnly)
 	TArray<AMMBlock*> BlocksToCheck;
@@ -108,6 +118,7 @@ public:
 
 	virtual void Tick(float DeltaSeconds) override;
 
+	/** Minimum number of matching blocks to qualify as a match */
 	UFUNCTION(BlueprintCallable)
 	int32 GetMinimumMatchSize();
 
@@ -117,6 +128,7 @@ public:
 	UFUNCTION(BlueprintPure)
 	FName GetBlockTypeSetName();
 
+	/** Spawns the grid's background cells */
 	UFUNCTION(BlueprintCallable, CallInEditor)
 	void SpawnGrid();
 
@@ -166,29 +178,33 @@ public:
 	UFUNCTION(BlueprintCallable)
 	bool CheckFlaggedForMatches();
 
-	UFUNCTION(BlueprintCallable)
-	bool CheckForMatches(UPARAM(ref) AMMBlock* CheckBlock, FBlockMatch& HorizMatches, FBlockMatch& VertMatches, const bool bMarkBlocks = true);
+	//UFUNCTION(BlueprintCallable)
+	//bool CheckForMatches(UPARAM(ref) AMMBlock* CheckBlock, UPARAM(ref) UBlockMatch** HorizMatchPtr, UBlockMatch** VertMatchPtr, const bool bMarkBlocks = true);
+	bool CheckForMatches(AMMBlock* CheckBlock, UBlockMatch** HorizMatchPtr, UBlockMatch** VertMatchPtr, const bool bMarkBlocks = true);
+
+	//UFUNCTION(BlueprintCallable)
+	//int32 MatchHorizontal(UPARAM(ref) AMMBlock* StartBlock, UPARAM(ref) UBlockMatch** MatchPtr, const bool bMarkBlocks = true);
+	int32 MatchHorizontal(AMMBlock* StartBlock, UBlockMatch** MatchPtr, const bool bMarkBlocks = true);
+
+	//UFUNCTION(BlueprintCallable)
+	//int32 MatchVertical(UPARAM(ref) AMMBlock* StartBlock, UPARAM(ref) UBlockMatch** MatchPtr, const bool bMarkBlocks = true);
+	int32 MatchVertical(AMMBlock* StartBlock, UBlockMatch** MatchPtr, const bool bMarkBlocks = true);
+
+	//UFUNCTION(BlueprintCallable)
+	//int32 MatchDirection(UPARAM(ref) AMMBlock* StartBlock, const EMMDirection Direction, UBlockMatch** MatchPtr, const bool bRecurse = true);
+	int32 MatchDirection(AMMBlock* StartBlock, const EMMDirection Direction, UBlockMatch** MatchPtr, const bool bRecurse = true);
 
 	UFUNCTION(BlueprintCallable)
-	int32 MatchHorizontal(UPARAM(ref) AMMBlock* StartBlock, FBlockMatch& Match, const bool bMarkBlocks = true);
-
-	UFUNCTION(BlueprintCallable)
-	int32 MatchVertical(UPARAM(ref) AMMBlock* StartBlock, FBlockMatch& Match, const bool bMarkBlocks = true);
-
-	UFUNCTION(BlueprintCallable)
-	int32 MatchDirection(UPARAM(ref) AMMBlock* StartBlock, const EMMDirection Direction, FBlockMatch& Matches, const bool bRecurse = true);
-
-	UFUNCTION(BlueprintCallable)
-	void SortMatch(UPARAM(ref) FBlockMatch& Match, bool bForceSort = false);
+	void SortMatch(UPARAM(ref) UBlockMatch* Match, bool bForceSort = false);
 
 	UFUNCTION()
 	bool ResolveMatches();
 
 	UFUNCTION()
-	bool PerformActionsForMatch(UPARAM(ref) FBlockMatch& Match);
+	bool PerformActionsForMatch(UPARAM(ref) UBlockMatch* Match);
 
 	UFUNCTION()
-	bool PerformActionType(const FMatchActionType& MatchActionType, const FBlockMatch& Match);
+	bool PerformActionType(const FMatchActionType& MatchActionType, const UBlockMatch* Match);
 
 	UFUNCTION()
 	void SettleBlocks();
@@ -201,7 +217,7 @@ public:
 		
 	void BlockFinishedMoving(AMMBlock* Block, bool bBlockMoved = true);
 	
-	void BlockFinishedMatch(AMMBlock* Block, const FBlockMatch& Match);
+	void BlockFinishedMatch(AMMBlock* Block, UBlockMatch* Match);
 
 	void AllMatchesFinished();
 	
@@ -212,6 +228,8 @@ public:
 	FORCEINLINE class USceneComponent* GetSceneRoot() const { return SceneRoot; }
 	/** Returns ScoreText subobject **/
 	FORCEINLINE class UTextRenderComponent* GetScoreText() const { return ScoreText; }
+
+	bool DebugBlocks();
 
 protected:
 	// Begin AActor interface

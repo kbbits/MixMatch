@@ -94,13 +94,13 @@ bool ARecipePlayGrid::GetRandomBlockTypeNameForCell_Implementation(const AMMPlay
 				break;
 			}
 		}
-		UE_LOG(LogMMGame, Log, TEXT("RecipePlayGrid::GetRandomBlockTypeNameForCell - Got block type from recipe: %s"), *FoundBlockTypeName.ToString());
+		//UE_LOG(LogMMGame, Log, TEXT("RecipePlayGrid::GetRandomBlockTypeNameForCell - Got block type from recipe: %s"), *FoundBlockTypeName.ToString());
 	}
 	else
 	{
 		SetBlockTypeSetName(FName(FString::Printf(TEXT("Default_%d"), TargetBlockTypes - GoodsOdds.Num())));
 		GameMode->GetRandomBlockTypeNameForCell(Cell, FoundBlockTypeName);
-		UE_LOG(LogMMGame, Log, TEXT("RecipePlayGrid::GetRandomBlockTypeNameForCell - Got block type: %s from BlockTypeSet %s"), *FoundBlockTypeName.ToString(),*FString::Printf(TEXT("Default_%d"), TargetBlockTypes - GoodsOdds.Num()));
+		//UE_LOG(LogMMGame, Log, TEXT("RecipePlayGrid::GetRandomBlockTypeNameForCell - Got block type: %s from BlockTypeSet %s"), *FoundBlockTypeName.ToString(),*FString::Printf(TEXT("Default_%d"), TargetBlockTypes - GoodsOdds.Num()));
 	}
 	return !FoundBlockTypeName.IsNone();
 	//return Super::GetRandomBlockTypeNameForCell_Implementation(Cell, FoundBlockTypeName);

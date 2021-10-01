@@ -10,7 +10,7 @@ UMatchAction::UMatchAction()
 }
 
 
-bool UMatchAction::Perform_Implementation(const FBlockMatch& Match, const FMatchActionType& MatchActionType)
+bool UMatchAction::Perform_Implementation(const UBlockMatch* Match, const FMatchActionType& MatchActionType)
 {
 	return true;
 }

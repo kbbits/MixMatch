@@ -4,8 +4,8 @@
 //#include "MMBlock.h"
 #include "BlockMatch.generated.h"
 
-USTRUCT(BlueprintType)
-struct FBlockMatch
+UCLASS(BlueprintType, Blueprintable)
+class MIXMATCH_API UBlockMatch : public UObject
 {
 	GENERATED_BODY()
 
@@ -23,8 +23,10 @@ public:
 	UPROPERTY(BlueprintReadOnly)
 	FIntPoint EndCoords;
 
+	UPROPERTY(BlueprintReadOnly)
 	bool bSorted = false;
 
+	UPROPERTY(BlueprintReadOnly)
 	bool bMatchFinished = false;
 };
 

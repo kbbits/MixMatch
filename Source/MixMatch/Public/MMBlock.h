@@ -35,15 +35,15 @@ public:
 	EMMGridState BlockState;
 
 	/** Are we currently highlighted? */
-	bool bIsHighlighted;
+	bool bIsHighlighted = false;
 
 	bool bMovedByPlayer = false;
 
-	bool bMatchedHorizontal;
+	bool bMatchedHorizontal = false;;
 
-	bool bMatchedVertical;
+	bool bMatchedVertical = false;
 
-	bool bMatchFinished = false;
+	//bool bMatchFinished = false;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = Block)
 	TAssetPtr<USoundBase> MatchSound;
@@ -51,12 +51,15 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = Block)
 	TAssetPtr<USoundBase> StopMoveSound;
 
+	/** Optional curve modifying block's movement speed along it's travels. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = Block)
 	UCurveFloat* MoveCurve;
 
+	/** Optional curve modifying block's movement speed along it's travels during a failed move. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = Block)
 	UCurveFloat* MoveFailCurve;
 
+	/** Brief delay when a block becomes unsettled until it's settling movement starts */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = Block)
 	float SettleFallDelay;
 
@@ -67,7 +70,7 @@ public:
 	class UMaterialInterface* AltMaterial;
 		
 	/** Grid cell where we should be located */
-	UPROPERTY(BlueprintReadOnly)
+	UPROPERTY(BlueprintReadOnly, Category = Block)
 	AMMPlayGridCell* OwningGridCell;
 
 	bool bUnsettled = false;
@@ -75,12 +78,10 @@ public:
 	bool bFallingIntoGrid;
 
 protected:
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = Block)
 	FBlockType BlockType;
 
 	AMMPlayGrid* OwningGrid;
-
-	AMMPlayGridCell* MoveToCell;
 
 	bool bMoveSuccessful;
 
@@ -95,8 +96,8 @@ protected:
 
 private:
 
-	//UPROPERTY()
-	const FBlockMatch* CurrentMatch = nullptr;
+	UPROPERTY(BlueprintReadOnly, Category = Block, meta = (AllowPrivateAccess = "true"))
+	TArray<UBlockMatch*> CurrentMatches;
 
 public:
 
@@ -105,7 +106,7 @@ public:
 	UFUNCTION(BlueprintNativeEvent)
 	bool MoveTick(float DeltaSeconds);
 
-	// Base class does nothing but change state to normal and call MatchFinished.
+	// Base class does nothing but call MatchFinished on all current matches.
 	UFUNCTION(BlueprintNativeEvent)
 	bool MatchTick(float DeltaSeconds);
 
@@ -129,6 +130,9 @@ public:
 
 	UFUNCTION(BlueprintPure)
 	bool IsMatched();
+
+	UFUNCTION(BlueprintPure)
+	bool IsMatchFinished(const UBlockMatch* Match);
 
 	UFUNCTION(BlueprintPure)
 	bool CanMove();
@@ -165,9 +169,10 @@ public:
 	void OnMoveFail(const AMMPlayGridCell* ToCell);
 
 	UFUNCTION(BlueprintNativeEvent)
-	void OnMatched(const FBlockMatch& Match);
+	void OnMatched(UBlockMatch* Match);
+	virtual void OnMatched_Implementation(UBlockMatch* Match);
 
-	void OnMatched_Native(const FBlockMatch* Match);
+	//void OnMatched_Native(const UBlockMatch* Match);
 
 	UFUNCTION(BlueprintNativeEvent)
 	void OnUnsettle();
@@ -178,14 +183,15 @@ public:
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable)
 	void MoveFinished();
 
-	UFUNCTION(BlueprintNativeEvent, BlueprintCallable)
-	void MatchFinished(const FBlockMatch& Match);
+	UFUNCTION(BlueprintCallable)
+	void MatchFinished(UPARAM(ref) UBlockMatch* Match);
+	//virtual void MatchFinished_Implementation(UBlockMatch* Match);
 
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable)
 	void SettleFinished();
 
 protected:
-
+		
 	/** Gets this block's location relative to the grid. */
 	FVector GetRelativeLocation();
 

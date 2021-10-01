@@ -17,14 +17,15 @@ UMatchActionSpawnBlock::UMatchActionSpawnBlock()
 }
 
 
-bool UMatchActionSpawnBlock::Perform_Implementation(const FBlockMatch& Match, const FMatchActionType& MatchActionType)
+bool UMatchActionSpawnBlock::Perform_Implementation(const UBlockMatch* Match, const FMatchActionType& MatchActionType)
 {
 	Super::Perform_Implementation(Match, MatchActionType);
-	if (Match.Blocks.Num() == 0) { return true; }
-	AMMPlayGrid* Grid = Match.Blocks[0]->Grid();
+	check(Match);
+	if (Match->Blocks.Num() == 0) { return true; }
+	AMMPlayGrid* Grid = Match->Blocks[0]->Grid();
 	FIntPoint SpawnCoords = FIntPoint::NoneValue;
 	FIntPoint SpawnOffset = FIntPoint(0,0);
-	FIntPoint MatchMiddleCoords = FIntPoint::DivideAndRoundDown(Match.StartCoords + Match.EndCoords, 2);
+	FIntPoint MatchMiddleCoords = FIntPoint::DivideAndRoundDown(Match->StartCoords + Match->EndCoords, 2);
 	int32 SpawnBatches = 0;
 	if (Grid == nullptr) {
 		UE_LOG(LogMMGame, Error, TEXT("MatchActionSpawnBlock::Perform - Cannot get grid from match"));
@@ -36,10 +37,10 @@ bool UMatchActionSpawnBlock::Perform_Implementation(const FBlockMatch& Match, co
 			SpawnBatches = 1;
 			break;
 		case EMMBlockQuantity::PerBlock :
-			SpawnBatches = Match.Blocks.Num();
+			SpawnBatches = Match->Blocks.Num();
 			break;
 		case EMMBlockQuantity::PerBlockOverMin :
-			SpawnBatches = Match.Blocks.Num() - Grid->GetMinimumMatchSize();
+			SpawnBatches = Match->Blocks.Num() - Grid->GetMinimumMatchSize();
 			break;
 	}
 	for (int32 BatchNum = 1; BatchNum <= SpawnBatches; BatchNum++) 
@@ -52,7 +53,7 @@ bool UMatchActionSpawnBlock::Perform_Implementation(const FBlockMatch& Match, co
 			bool bFoundMoved = false;
 			switch (LocationType) {
 				case EMMBlockLocation::OnMovedBlock:
-					for (AMMBlock* Block : Match.Blocks)
+					for (AMMBlock* Block : Match->Blocks)
 					{
 						if (Block->bMovedByPlayer) 
 						{
@@ -75,7 +76,7 @@ bool UMatchActionSpawnBlock::Perform_Implementation(const FBlockMatch& Match, co
 					break;
 					
 			}
-			if (Match.Orientation == EMMOrientation::Horizontal) 
+			if (Match->Orientation == EMMOrientation::Horizontal) 
 			{
 				FIntPoint TmpCoord = FIntPoint((i + BatchNum) % 2, 0);
 				SpawnOffset = (SpawnOffset * FIntPoint(-1, -1)) + TmpCoord;

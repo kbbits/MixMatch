@@ -71,5 +71,5 @@ public:
 	// Perform this action. Default implementation just returns true.
 	// Returns: true if action operation was successful.
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable)
-	bool Perform(const FBlockMatch& Match, const FMatchActionType& MatchActionType);
+	bool Perform(const UBlockMatch* Match, const FMatchActionType& MatchActionType);
 };

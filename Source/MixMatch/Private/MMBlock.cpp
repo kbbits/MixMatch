@@ -65,6 +65,35 @@ void AMMBlock::OnConstruction(const FTransform& Transform)
 void AMMBlock::Tick(float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);
+	if (Grid() && BlockState != EMMGridState::Normal && BlockState != Grid()->GridState)
+	{
+		FString BlockStateStr;
+		FString GridStateStr;
+		switch (BlockState) {
+			case EMMGridState::Settling:
+				BlockStateStr = FString("Settling");
+				break;
+			case EMMGridState::Matching:
+				BlockStateStr = FString("Matching");
+				break;
+			case EMMGridState::Moving:
+				BlockStateStr = FString("Moving");
+		}
+		switch (Grid()->GridState) {
+		case EMMGridState::Normal:
+			GridStateStr = FString("Normal");
+			break;
+		case EMMGridState::Settling:
+			GridStateStr = FString("Settling");
+			break;
+		case EMMGridState::Matching:
+			GridStateStr = FString("Matching");
+			break;
+		case EMMGridState::Moving:
+			GridStateStr = FString("Moving");
+		}
+		UE_LOG(LogMMGame, Warning, TEXT("Block in different state than grid. Block state: %s Grid state: %s"), *BlockStateStr, *GridStateStr);
+	}
 	switch (BlockState) {
 		case EMMGridState::Moving :
 			MoveTick(DeltaSeconds);
@@ -115,12 +144,17 @@ bool AMMBlock::MoveTick_Implementation(float DeltaSeconds)
 
 bool AMMBlock::MatchTick_Implementation(float DeltaSeconds)
 {
-	// Base class does nothing but change state to normal and call MatchFinished.
-	if (CurrentMatch) {
-		MatchFinished(*CurrentMatch);
+	// Base class does nothing but call MatchFinished on all current matches.
+	if (CurrentMatches.Num() > 0) {
+		TArray<UBlockMatch*> MatchesToFinish;
+		MatchesToFinish.Append(CurrentMatches);
+		for (UBlockMatch* CurMatch : MatchesToFinish) {
+			MatchFinished(CurMatch);
+		}
 	}
 	else {
-		MatchFinished(FBlockMatch());
+		UE_LOG(LogMMGame, Warning, TEXT("MMBlock::MatchTick - Called match tick with no current match."));
+		//MatchFinished(UBlockMatch());
 	}
 	return true;
 }
@@ -143,7 +177,7 @@ bool AMMBlock::SettleTick_Implementation(float DeltaSeconds)
 			}
 			// Re-check our settle location
 			AMMPlayGridCell* SettleCell = FindSettleCell();
-			if (SettleCell && SettleCell != OwningGridCell)
+			if (SettleCell != nullptr && SettleCell != OwningGridCell)
 			{
 				if (OwningGridCell->CurrentBlock == this) {
 					OwningGridCell->CurrentBlock = nullptr;
@@ -229,6 +263,12 @@ bool AMMBlock::IsMatched()
 }
 
 
+bool AMMBlock::IsMatchFinished(const UBlockMatch* Match)
+{
+	return !CurrentMatches.Contains(Match);
+}
+
+
 bool AMMBlock::CanMove()
 {
 	return !BlockType.bImmobile;
@@ -239,8 +279,7 @@ AMMPlayGridCell* AMMBlock::FindSettleCell()
 {
 	// Determine where to settle to
 	AMMPlayGridCell* CurCell = OwningGridCell;
-	bool bFoundBlockBelow = false;
-	int32 OpenBelow = 0;
+	int32 AllOpenBelow = 0;
 	if (Grid())
 	{
 		FIntPoint Coords = CurCell->GetCoords();
@@ -250,21 +289,28 @@ AMMPlayGridCell* AMMBlock::FindSettleCell()
 			NextCell = Grid()->GetCell(FIntPoint(Coords.X, i));
 			if (NextCell->CurrentBlock == nullptr)
 			{
-				CurCell = NextCell;
-				if (!bFoundBlockBelow) { OpenBelow++; }
+				AllOpenBelow++;
 			}
 			else 
 			{
-				bFoundBlockBelow = true;
 			}		
 		}
 	}
-	if (OpenBelow > 0) {
-		return Grid()->GetCell(OwningGridCell->GetCoords() + FIntPoint(0, -OpenBelow));
+	if (AllOpenBelow > 0) {
+		AMMPlayGridCell* FoundCell = Grid()->GetCell(OwningGridCell->GetCoords() + FIntPoint(0, -AllOpenBelow));
+		if (FoundCell->CurrentBlock != nullptr)	{
+			UE_LOG(LogMMGame, Error, TEXT("MMBlock::FindSettleCell - Block at %s found settle cell at %s but it already has a current cell"), *GetCoords().ToString(), *FoundCell->GetCoords().ToString());
+			if (Grid()) { Grid()->DebugBlocks(); }
+			return nullptr;
+		}
+		return FoundCell;
 	}
-	else if (CurCell != OwningGridCell) {
-		return Grid()->GetCell(OwningGridCell->GetCoords() + FIntPoint(0, -1));
-	}
+	//if (OpenDirectBelow > 0) {
+	//	return Grid()->GetCell(OwningGridCell->GetCoords() + FIntPoint(0, -OpenDirectBelow));
+	//}
+	//else if (CurCell != OwningGridCell) {
+	//	return Grid()->GetCell(OwningGridCell->GetCoords() + FIntPoint(0, -1));
+	//}
 	return nullptr;
 }
 
@@ -322,7 +368,7 @@ void AMMBlock::DestroyBlock()
 	AltMatDynamic = nullptr;
 	OwningGrid = nullptr;
 	OwningGridCell = nullptr;
-	CurrentMatch = nullptr;
+	CurrentMatches.Empty();
 	Destroy();
 }
 
@@ -349,24 +395,28 @@ void AMMBlock::OnMoveFail_Implementation(const AMMPlayGridCell* ToCell)
 }
 
 
-void AMMBlock::OnMatched_Implementation(const FBlockMatch& Match)
+void AMMBlock::OnMatched_Implementation(UBlockMatch* Match)
 {
 	BlockState = EMMGridState::Matching;
+	if (GetBlockMesh()) {
+		GetBlockMesh()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	}
+	CurrentMatches.AddUnique(Match);
 }
 
 
-void AMMBlock::OnMatched_Native(const FBlockMatch* Match)
-{
-	CurrentMatch = Match;
-	if (CurrentMatch) {
-		OnMatched(*CurrentMatch);
-	}
-	else
-	{
-		UE_LOG(LogMMGame, Error, TEXT("Block::OnMatched_Native - CurrentMatch is invalid"));
-		return;
-	}
-}
+//void AMMBlock::OnMatched_Native(const UBlockMatch* Match)
+//{
+//	if (Match) {
+//		CurrentMatches.AddUnique(*Match);
+//		OnMatched(*Match);
+//	}
+//	else
+//	{
+//		UE_LOG(LogMMGame, Error, TEXT("Block::OnMatched_Native - Match is invalid"));
+//		return;
+//	}
+//}
 
 
 void AMMBlock::OnUnsettle_Implementation()
@@ -377,28 +427,14 @@ void AMMBlock::OnUnsettle_Implementation()
 		if (!bFallingIntoGrid)
 		{
 			SettleCell = FindSettleCell();
-			if (SettleCell)
-			{
-				//MoveToCell = SettleCell;
+			if (SettleCell)	{
 				bMoveSuccessful = true;
 			}
 		}
 		return;
 	}
-	// Determine where to settle to
-	if (CanMove()) {
-		if (bFallingIntoGrid) {
-			SettleCell = OwningGridCell;
-		}
-		else {
-			SettleCell = FindSettleCell();
-		}		
-	}
-	if (SettleCell)
-	{
-		//MoveToCell = SettleCell;
+	if (CanMove() && !IsMatched()) {
 		bUnsettled = true;
-		bMoveSuccessful = true;
 		if (SettleFallDelay > 0) {
 			GetWorldTimerManager().SetTimer(SettleFallDelayHandle, this, &AMMBlock::OnSettle, SettleFallDelay, false);
 		}
@@ -408,7 +444,6 @@ void AMMBlock::OnUnsettle_Implementation()
 	}
 	else 
 	{
-		//MoveToCell = nullptr;
 		bMoveSuccessful = false;
 		BlockState = EMMGridState::Settling;
 	}
@@ -421,37 +456,45 @@ void AMMBlock::OnSettle_Implementation()
 		return;
 	}
 	GetWorldTimerManager().ClearTimer(SettleFallDelayHandle);
-	if (bMoveSuccessful) { // && MoveToCell) {
-		AMMPlayGridCell* UnsettleAboveCell = OwningGridCell;
-		if (!bFallingIntoGrid) 
-		{
-			// Check settle cell again.
-			AMMPlayGridCell* SettleCell = FindSettleCell();
-			if (SettleCell) {
-				//MoveToCell = SettleCell;
-				if (OwningGridCell->CurrentBlock == this) {
-					OwningGridCell->CurrentBlock = nullptr;
-				}
-				OwningGridCell = SettleCell;
-				OwningGridCell->CurrentBlock = this;
+	AMMPlayGridCell* SettleCell = nullptr;
+	AMMPlayGridCell* UnsettleAboveCell = OwningGridCell;
+	if (bFallingIntoGrid)
+	{
+		bMoveSuccessful = true;
+	}
+	else 
+	{
+		// Check settle cell
+		SettleCell = FindSettleCell();
+		if (!IsMatched() && SettleCell != nullptr && SettleCell != OwningGridCell && SettleCell->CurrentBlock == nullptr) {
+			if (OwningGridCell->CurrentBlock == this) {
+				OwningGridCell->CurrentBlock = nullptr;
 			}
-		}		
-		StartMoveDistance = DistanceToCell();
-		BlockState = EMMGridState::Settling;
-		// Notify grid
-		if (!bFallingIntoGrid && UnsettleAboveCell && Grid()) {
-			Grid()->UnsettleBlockAboveCell(UnsettleAboveCell);
-		}		
+			OwningGridCell = SettleCell;
+			OwningGridCell->CurrentBlock = this;
+			bMoveSuccessful = true;
+		}
+		else {
+			if (SettleCell && SettleCell->CurrentBlock != nullptr) {
+				UE_LOG(LogMMGame, Error, TEXT("MMBlock::OnSettle - Attempting to settle block at %s to cell %s that is not empty."), *GetName(), *SettleCell->GetCoords().ToString());
+			}
+			bMoveSuccessful = false;
+			BlockState = EMMGridState::Settling;
+			return;
+		}
 	}
-	else {
-		MoveFinished();
-	}
-	//MoveToCell = nullptr;
+	StartMoveDistance = DistanceToCell();
+	BlockState = EMMGridState::Settling;
+	// Notify grid
+	if (!bFallingIntoGrid && UnsettleAboveCell && Grid()) {
+		Grid()->UnsettleBlockAboveCell(UnsettleAboveCell);
+	}		
 }
 
 
 void AMMBlock::MoveFinished_Implementation()
 {
+	bUnsettled = false;
 	BlockState = EMMGridState::Normal;
 	if (Grid()) {
 		Grid()->BlockFinishedMoving(this, bMoveSuccessful);
@@ -459,12 +502,13 @@ void AMMBlock::MoveFinished_Implementation()
 }
 
 
-void AMMBlock::MatchFinished_Implementation(const FBlockMatch& Match)
+void AMMBlock::MatchFinished(UBlockMatch* Match)
 {
-	bMatchFinished = true;
-	CurrentMatch = nullptr;
-	BlockState = EMMGridState::Normal;
-	if (Grid())	{
+	bool bWasCurrentMatch = CurrentMatches.RemoveSingle(Match) == 1;
+	if (CurrentMatches.Num() == 0) {
+		BlockState = EMMGridState::Normal;
+	}
+	if (bWasCurrentMatch && Grid())	{
 		Grid()->BlockFinishedMatch(this, Match);
 	}	
 }
@@ -473,9 +517,15 @@ void AMMBlock::MatchFinished_Implementation(const FBlockMatch& Match)
 void AMMBlock::SettleFinished_Implementation()
 {
 	bUnsettled = false;
-	BlockState = EMMGridState::Normal;
-	if (Grid()) {
-		Grid()->BlockFinishedMoving(this, bMoveSuccessful);
+	if (BlockState == EMMGridState::Settling)
+	{
+		BlockState = EMMGridState::Normal;
+		if (Grid()) {
+			Grid()->BlockFinishedMoving(this, bMoveSuccessful);
+		}
+	}
+	else {
+		UE_LOG(LogMMGame, Warning, TEXT("MMBlock::SettleFinished - Called when block state is not Settling"));
 	}
 }
 

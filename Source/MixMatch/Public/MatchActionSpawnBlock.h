@@ -25,5 +25,5 @@ public:
 	// Constructor
 	UMatchActionSpawnBlock();
 
-	virtual bool Perform_Implementation(const FBlockMatch& Match, const FMatchActionType& MatchActionType) override;
+	virtual bool Perform_Implementation(const UBlockMatch* Match, const FMatchActionType& MatchActionType) override;
 };

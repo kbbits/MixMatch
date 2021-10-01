@@ -86,7 +86,7 @@ bool AMMGameMode::GetRandomBlockTypeNameForCell(const AMMPlayGridCell* Cell, FNa
 			FBlockType* pBlockType = CachedBlockTypes.Find(WBT.BlockTypeName);
 			if (pBlockType) {
 				FoundBlockTypeName = pBlockType->Name;
-				UE_LOG(LogMMGame, Log, TEXT("MMGameMode::GetRandomBlockTypeNameForCell - Got block type %s from BlockTypeSet %s"), *FoundBlockTypeName.ToString(), *CurrentWeightedBlockTypeSetName.ToString());
+				//UE_LOG(LogMMGame, Log, TEXT("MMGameMode::GetRandomBlockTypeNameForCell - Got block type %s from BlockTypeSet %s"), *FoundBlockTypeName.ToString(), *CurrentWeightedBlockTypeSetName.ToString());
 				return true;
 			}
 			else {
@@ -107,22 +107,23 @@ bool AMMGameMode::GetBlockClass(TSubclassOf<AMMBlock>& BlockClass)
 }
 
 
-bool AMMGameMode::GetGoodsForMatch_Implementation(const FBlockMatch& Match, FGoodsQuantitySet& MatchGoods)
+bool AMMGameMode::GetGoodsForMatch_Implementation(const UBlockMatch* Match, FGoodsQuantitySet& MatchGoods)
 {
+	check(Match);
 	InitGoodsDropper();
 	if (!IsValid(GoodsDropper)) {
 		UE_LOG(LogMMGame, Error, TEXT("MMGameMode::GetGoodsForMatch - GoodsDropper is not valid"));
 		return false;
 	}
 	MatchGoods.Goods.Empty();
-	int32 MatchSize = Match.Blocks.Num();
+	int32 MatchSize = Match->Blocks.Num();
 	if (MatchSize == 0) {
 		return false;
 	}
-	if (!Match.Blocks.IsValidIndex(0) || Match.Blocks[0]->Grid() == nullptr) {
+	if (!Match->Blocks.IsValidIndex(0) || Match->Blocks[0]->Grid() == nullptr) {
 		return false;
 	}
-	int32 BonusMatchSize = MatchSize - Match.Blocks[0]->Grid()->GetMinimumMatchSize();
+	int32 BonusMatchSize = MatchSize - Match->Blocks[0]->Grid()->GetMinimumMatchSize();
 	float OverallMult = 0.f;
 	TArray<FGoodsQuantity> TempTotalGoods;
 	/*
@@ -170,7 +171,7 @@ bool AMMGameMode::GetGoodsForMatch_Implementation(const FBlockMatch& Match, FGoo
 	}
 	*/
 	// Iterate over each block, getting dropped goods from each
-	for (AMMBlock* Block : Match.Blocks)
+	for (AMMBlock* Block : Match->Blocks)
 	{
 		if (BonusMatchSize == 0 || Block->GetBlockType().BonusMatchGoodsMultiplier == 0.f) {
 			TempTotalGoods.Append(Block->GetMatchGoods(GoodsDropper));
@@ -199,19 +200,20 @@ bool AMMGameMode::GetGoodsForMatch_Implementation(const FBlockMatch& Match, FGoo
 }
 
 
-int32 AMMGameMode::GetScoreForMatch(const FBlockMatch& Match)
+int32 AMMGameMode::GetScoreForMatch(const UBlockMatch* Match)
 {
-	int32 MatchSize = Match.Blocks.Num();
+	check(Match);
+	int32 MatchSize = Match->Blocks.Num();
 	if (MatchSize == 0) {
 		return 0;
 	}
-	if (!Match.Blocks.IsValidIndex(0) || Match.Blocks[0]->Grid() == nullptr) {
+	if (!Match->Blocks.IsValidIndex(0) || Match->Blocks[0]->Grid() == nullptr) {
 		return 0;
 	}
-	int32 BonusMatchSize = MatchSize - Match.Blocks[0]->Grid()->GetMinimumMatchSize();
+	int32 BonusMatchSize = MatchSize - Match->Blocks[0]->Grid()->GetMinimumMatchSize();
 	float OverallMult = 0.f;
 	int32 TotalScore = 0;
-	for (AMMBlock* Block : Match.Blocks)
+	for (AMMBlock* Block : Match->Blocks)
 	{
 		if (BonusMatchSize > 0) {
 			TotalScore += Block->GetBlockType().PointsPerBlock + (Block->GetBlockType().PointsPerBlock * (BonusMatchSize * Block->GetBlockType().BonusMatchPointsMultiplier));

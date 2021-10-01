@@ -82,11 +82,11 @@ public:
 	bool GetBlockClass(TSubclassOf<class AMMBlock>& BlockClass);
 
 	UFUNCTION(BlueprintNativeEvent)
-	bool GetGoodsForMatch(const FBlockMatch& Match, FGoodsQuantitySet& MatchGoods);
-	virtual bool GetGoodsForMatch_Implementation(const FBlockMatch& Match, FGoodsQuantitySet& MatchGoods);
+	bool GetGoodsForMatch(const UBlockMatch* Match, FGoodsQuantitySet& MatchGoods);
+	virtual bool GetGoodsForMatch_Implementation(const UBlockMatch* Match, FGoodsQuantitySet& MatchGoods);
 
 	UFUNCTION(BlueprintCallable)
-	int32 GetScoreForMatch(const FBlockMatch& Match);
+	int32 GetScoreForMatch(const UBlockMatch* Match);
 
 	bool SetBlockTypeSetName(const FName& BlockTypeSetName);
 
