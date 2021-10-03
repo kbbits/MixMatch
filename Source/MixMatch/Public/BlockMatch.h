@@ -1,13 +1,16 @@
 #pragma once
 
 #include "MMEnums.h"
-//#include "MMBlock.h"
 #include "BlockMatch.generated.h"
 
 UCLASS(BlueprintType, Blueprintable)
 class MIXMATCH_API UBlockMatch : public UObject
 {
 	GENERATED_BODY()
+
+public:
+
+	UBlockMatch();
 
 public:
 
@@ -28,5 +31,12 @@ public:
 
 	UPROPERTY(BlueprintReadOnly)
 	bool bMatchFinished = false;
+
+	/** FUNCTIONS **/
+
+public:
+
+	UFUNCTION(BlueprintCallable)
+	void Sort(const bool bForceSort = false);
 };
 

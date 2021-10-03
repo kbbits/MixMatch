@@ -3,12 +3,12 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
 #include "MMEnums.h"
+#include "MMBlock.h"
 #include "BlockMatch.h"
 #include "MatchAction.h"
 #include "MMPlayGridCell.h"
 #include "MMPlayGrid.generated.h"
 
-class AMMBlock;
 
 /** Class used to spawn grid and manage score */
 UCLASS(minimalapi)
@@ -75,6 +75,16 @@ public:
 	UPROPERTY()
 	AMMBlock* SelectedBlock;
 
+	/** Number of moves player has made during current grid game */
+	UPROPERTY(BlueprintReadOnly)
+	int32 PlayerMovesCount;
+
+	UPROPERTY(BlueprintReadWrite)
+	bool bPauseNewBlocks;
+
+	UPROPERTY(BlueprintReadOnly)
+	TMap<int32, FBlockSet> BlocksFallingIntoGrid;
+
 protected:
 
 	UPROPERTY()
@@ -106,6 +116,10 @@ private:
 	/** Text component for the score */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
 	class UTextRenderComponent* ScoreText;
+
+	/** StaticMesh component for the clickable blocks toggle control */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
+	class UStaticMeshComponent* BlockToggleControlMesh;
 
 #if WITH_EDITORONLY_DATA
 	/** Actor billboard */
@@ -143,10 +157,16 @@ public:
 	bool GetRandomBlockTypeNameForCell(const AMMPlayGridCell* Cell, FName& FoundBlockTypeName);
 
 	UFUNCTION(BlueprintCallable)
-	bool AddBlockInCell(UPARAM(ref) AMMPlayGridCell* Cell, const FName& BlockType, const float OffsetAboveCell = 0.f, const bool bAllowUnsettle = true);
+	AMMBlock* AddBlockInCell(UPARAM(ref) AMMPlayGridCell* Cell, const FName& BlockType, const float OffsetAboveCell = 0.f, const bool bAllowUnsettle = true);
 
 	UFUNCTION(BlueprintCallable)
-	void AddRandomBlockInCell(UPARAM(ref) AMMPlayGridCell* Cell, const float OffsetAboveCell = 0.f, const bool bAllowUnsettle = true, const bool bPreventMatches = false);
+	AMMBlock* AddRandomBlockInCell(UPARAM(ref) AMMPlayGridCell* Cell, const float OffsetAboveCell = 0.f, const bool bAllowUnsettle = true, const bool bPreventMatches = false);
+
+	/** Drop block from above grid to fall into given cell */
+	UFUNCTION(BlueprintCallable)
+	void DropRandomBlockInCellColumn(UPARAM(ref) AMMPlayGridCell* Cell, const bool bPreventMatches = false);
+
+	void CellBecameOpen(AMMPlayGridCell* Cell);
 
 	UFUNCTION(BlueprintCallable, CallInEditor)
 	void FillGridBlocks();
@@ -169,6 +189,14 @@ public:
 
 	void BlockClicked(AMMBlock* Block);
 
+	void CellClicked(AMMPlayGridCell* Cell);
+
+	UFUNCTION()
+	void ToggleBlocksClicked(UPrimitiveComponent* ClickedComp, FKey ButtonClicked);
+
+	UFUNCTION()
+	void OnFingerPressedToggleBlocks(ETouchIndex::Type FingerIndex, UPrimitiveComponent* TouchedComponent);
+
 	/* Move a block from one cell to given adjacent cell.
 	 * If target cell is occupied by a moveable block, the blocks will be swapped. 
 	 * Returns true if the move was successful. */
@@ -177,6 +205,10 @@ public:
 
 	UFUNCTION(BlueprintCallable)
 	bool CheckFlaggedForMatches();
+
+
+	// ###  TODO: Change matching functions to use cell instead of block.
+
 
 	//UFUNCTION(BlueprintCallable)
 	//bool CheckForMatches(UPARAM(ref) AMMBlock* CheckBlock, UPARAM(ref) UBlockMatch** HorizMatchPtr, UBlockMatch** VertMatchPtr, const bool bMarkBlocks = true);
@@ -195,7 +227,7 @@ public:
 	int32 MatchDirection(AMMBlock* StartBlock, const EMMDirection Direction, UBlockMatch** MatchPtr, const bool bRecurse = true);
 
 	UFUNCTION(BlueprintCallable)
-	void SortMatch(UPARAM(ref) UBlockMatch* Match, bool bForceSort = false);
+	void SortMatches(/*const bool bForceSort = false*/);
 
 	UFUNCTION()
 	bool ResolveMatches();
@@ -229,7 +261,7 @@ public:
 	/** Returns ScoreText subobject **/
 	FORCEINLINE class UTextRenderComponent* GetScoreText() const { return ScoreText; }
 
-	bool DebugBlocks();
+	bool DebugBlocks(const FString& ContextString = FString());
 
 protected:
 	// Begin AActor interface

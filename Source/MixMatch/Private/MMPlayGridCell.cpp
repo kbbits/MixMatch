@@ -35,11 +35,27 @@ AMMPlayGridCell::AMMPlayGridCell()
 	CellMesh->SetRelativeLocation(FVector(0.f, 0.f, 0.f));
 	CellMesh->SetMaterial(0, ConstructorStatics.BaseMaterial.Get());
 	CellMesh->SetupAttachment(SceneRoot);
+	CellMesh->OnClicked.AddDynamic(this, &AMMPlayGridCell::CellClicked);
+	CellMesh->OnInputTouchBegin.AddDynamic(this, &AMMPlayGridCell::OnFingerPressedCell);
 
 	// Save a pointer to the orange material
 	BaseMaterial = ConstructorStatics.BaseMaterial.Get();
 	AltMaterial = ConstructorStatics.AltMaterial.Get();
 	CurrentBlock = nullptr;
+}
+
+
+void AMMPlayGridCell::CellClicked(UPrimitiveComponent* ClickedComp, FKey ButtonClicked)
+{
+	check(OwningGrid);
+	OwningGrid->CellClicked(this);
+}
+
+
+void AMMPlayGridCell::OnFingerPressedCell(ETouchIndex::Type FingerIndex, UPrimitiveComponent* TouchedComponent)
+{
+	check(OwningGrid);
+	OwningGrid->CellClicked(this);
 }
 
 

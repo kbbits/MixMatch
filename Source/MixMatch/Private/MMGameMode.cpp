@@ -173,6 +173,7 @@ bool AMMGameMode::GetGoodsForMatch_Implementation(const UBlockMatch* Match, FGoo
 	// Iterate over each block, getting dropped goods from each
 	for (AMMBlock* Block : Match->Blocks)
 	{
+		check(Block);
 		if (BonusMatchSize == 0 || Block->GetBlockType().BonusMatchGoodsMultiplier == 0.f) {
 			TempTotalGoods.Append(Block->GetMatchGoods(GoodsDropper));
 		}

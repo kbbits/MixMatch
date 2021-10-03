@@ -55,6 +55,9 @@ const FCraftingRecipe& ARecipePlayGrid::GetRecipe()
 
 bool ARecipePlayGrid::GetRandomBlockTypeNameForCell_Implementation(const AMMPlayGridCell* Cell, FName& FoundBlockTypeName)
 {
+	// TODO: Remove this testing logic
+	//if (((PlayerMovesCount / 10) + 1) % 2 == 0) { return false; }
+
 	AMMGameMode* GameMode = Cast<AMMGameMode>(UGameplayStatics::GetGameMode(this));
 	if (GameMode == nullptr) {
 		UE_LOG(LogMMGame, Error, TEXT("RecipePlayGrid::GetRandomBlockTypeNameForCell - Cannot get game mode"));

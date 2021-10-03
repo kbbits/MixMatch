@@ -53,6 +53,14 @@ public:
 	/** Returns BlockMesh subobject **/
 	FORCEINLINE class UStaticMeshComponent* GetCellMesh() const { return CellMesh; }
 
+	/** Handle the cell being clicked */
+	UFUNCTION()
+	void CellClicked(UPrimitiveComponent* ClickedComp, FKey ButtonClicked);
+
+	/** Handle the cell being touched  */
+	UFUNCTION()
+	void OnFingerPressedCell(ETouchIndex::Type FingerIndex, UPrimitiveComponent* TouchedComponent);
+
 	UFUNCTION(BlueprintCallable)
 	void Highlight(bool bOn);
 

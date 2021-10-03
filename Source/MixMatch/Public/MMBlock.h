@@ -69,9 +69,13 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = Block)
 	class UMaterialInterface* AltMaterial;
 		
-	/** Grid cell where we should be located */
+	/** Grid cell where block is located */
 	UPROPERTY(BlueprintReadOnly, Category = Block)
 	AMMPlayGridCell* OwningGridCell;
+
+	/** Grid cell where block should be located */
+	UPROPERTY(BlueprintReadOnly, Category = Block)
+	AMMPlayGridCell* SettleToGridCell;
 
 	bool bUnsettled = false;
 
@@ -126,6 +130,9 @@ public:
 	AMMPlayGrid* Grid();
 
 	UFUNCTION(BlueprintPure)
+	AMMPlayGridCell* Cell();
+
+	UFUNCTION(BlueprintPure)
 	bool Matches(const AMMBlock* OtherBlock);
 
 	UFUNCTION(BlueprintPure)
@@ -138,6 +145,9 @@ public:
 	bool CanMove();
 
 	AMMPlayGridCell* FindSettleCell();
+
+	UFUNCTION(BlueprintCallable)
+	bool ChangeOwningGridCell(AMMPlayGridCell* Cell);
 
 	UFUNCTION(BlueprintPure)
 	float DistanceToCell();
@@ -190,11 +200,11 @@ public:
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable)
 	void SettleFinished();
 
-protected:
-		
 	/** Gets this block's location relative to the grid. */
 	FVector GetRelativeLocation();
 
+protected:
+		
 	void UpdateBlockVis();
 
 	virtual void BeginPlay() override;
@@ -205,8 +215,17 @@ public:
 	/** Returns BlockMesh subobject **/
 	FORCEINLINE class UStaticMeshComponent* GetBlockMesh() const { return BlockMesh; }
 
+};
 
+USTRUCT(BlueprintType)
+struct FBlockSet
+{
+	GENERATED_BODY()
 
+public:
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame)
+	TArray<AMMBlock*> Blocks;
 };
 
 
