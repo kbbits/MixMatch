@@ -98,6 +98,8 @@ protected:
 	UPROPERTY()
 	class UMaterialInstanceDynamic* AltMatDynamic = nullptr;
 
+	int32 BlockSettleFails = 0;
+
 private:
 
 	UPROPERTY(BlueprintReadOnly, Category = Block, meta = (AllowPrivateAccess = "true"))
@@ -147,7 +149,7 @@ public:
 	AMMPlayGridCell* FindSettleCell();
 
 	UFUNCTION(BlueprintCallable)
-	bool ChangeOwningGridCell(AMMPlayGridCell* Cell);
+	bool ChangeOwningGridCell(AMMPlayGridCell* ToCell);
 
 	UFUNCTION(BlueprintPure)
 	float DistanceToCell();
@@ -181,8 +183,6 @@ public:
 	UFUNCTION(BlueprintNativeEvent)
 	void OnMatched(UBlockMatch* Match);
 	virtual void OnMatched_Implementation(UBlockMatch* Match);
-
-	//void OnMatched_Native(const UBlockMatch* Match);
 
 	UFUNCTION(BlueprintNativeEvent)
 	void OnUnsettle();

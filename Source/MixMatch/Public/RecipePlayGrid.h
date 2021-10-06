@@ -44,6 +44,14 @@ public:
 	UFUNCTION(BlueprintPure)
 	const FCraftingRecipe& GetRecipe();
 
-	virtual bool GetRandomBlockTypeNameForCell_Implementation(const AMMPlayGridCell* Cell, FName& FoundBlockTypeName) override;
+	/** Helper to get the recipe level from player */
+	int32 GetRecipeLevel();
+
+	/** The percent chance (0.0-1.0) that a dropped-in block will be a recipe ingredient block. 
+	 * This is based on recipe level. */
+	UFUNCTION(BlueprintNativeEvent)
+	float GetChanceForIngredientBlock();
+
+	virtual bool GetRandomBlockTypeNameForCellEx_Implementation(const AMMPlayGridCell* Cell, FName& FoundBlockTypeName, const TArray<FName>& ExcludedBlockNames) override;
 };
 

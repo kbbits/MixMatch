@@ -81,11 +81,11 @@ void AMMPawn::TraceForBlock(const FVector& Start, const FVector& End, bool bDraw
 		AMMBlock* HitBlock = Cast<AMMBlock>(HitResult.Actor.Get());
 		if (CurrentBlockFocus != HitBlock)
 		{
-			if (CurrentBlockFocus)
+			if (IsValid(CurrentBlockFocus))
 			{
 				CurrentBlockFocus->Highlight(false);
 			}
-			if (HitBlock)
+			if (IsValid(HitBlock))
 			{
 				HitBlock->Highlight(true);
 			}
@@ -94,7 +94,9 @@ void AMMPawn::TraceForBlock(const FVector& Start, const FVector& End, bool bDraw
 	}
 	else if (CurrentBlockFocus)
 	{
-		CurrentBlockFocus->Highlight(false);
+		if (IsValid(CurrentBlockFocus)) {
+			CurrentBlockFocus->Highlight(false);
+		}
 		CurrentBlockFocus = nullptr;
 	}
 }

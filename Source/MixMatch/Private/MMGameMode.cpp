@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MMGameMode.h"
+#include "Kismet/GameplayStatics.h"
 #include "../MixMatch.h"
 #include "MMPlayerController.h"
 #include "MMPawn.h"
@@ -16,12 +17,8 @@ AMMGameMode::AMMGameMode()
 	DefaultPawnClass = AMMPawn::StaticClass();
 	// use our own player controller class
 	PlayerControllerClass = AMMPlayerController::StaticClass();
-	//GoodsDropper = CreateDefaultSubobject<UGoodsDropper>(TEXT("GoodsDropper"));
-	//if (GoodsDropper == nullptr) {
-	//	UE_LOG(LogMMGame, Error, TEXT("MMGameMode constructor - Could not create GoodsDropper."));
-	//}
-
-	BlockMoveSpeed = 100;
+	
+	DefaultBlockMoveSpeed = 300;
 }
 
 
@@ -29,6 +26,16 @@ void AMMGameMode::BeginPlay()
 {
 	InitCachedGoodsTypes();
 	InitWeightedBlockTypeSets();
+	TArray<AActor*> AllGrids;
+	AMMPlayerController* PC = Cast<AMMPlayerController>(UGameplayStatics::GetPlayerController(GetWorld(), 0));
+	check(PC);
+	if (PC) {
+		UGameplayStatics::GetAllActorsOfClass(GetWorld(), AMMPlayGrid::StaticClass(), AllGrids);
+		if (AllGrids.Num() > 0)
+		{
+			PC->SetCurrentGrid(Cast<AMMPlayGrid>(AllGrids[0]));
+		}
+	}
 }
 
 FGoodsType AMMGameMode::GetGoodsData(const FName& GoodsName, bool& bFound)
@@ -67,6 +74,12 @@ bool AMMGameMode::GetBlockTypeByName(const FName& BlockTypeName, FBlockType& Fou
 
 bool AMMGameMode::GetRandomBlockTypeNameForCell(const AMMPlayGridCell* Cell, FName& FoundBlockTypeName)
 {
+	return GetRandomBlockTypeNameForCell(Cell, FoundBlockTypeName, TArray<FName>());
+}
+
+
+bool AMMGameMode::GetRandomBlockTypeNameForCell(const AMMPlayGridCell* Cell, FName& FoundBlockTypeName, const TArray<FName>& ExcludedBlockNames)
+{
 	InitCachedBlockTypes();
 	if (Cell->OwningGrid == nullptr) {
 		UE_LOG(LogMMGame, Error, TEXT("GameMode::GetRandomBlockTypeNameForCell - Cell at %s has null grid"), *(Cell->GetCoords()).ToString());
@@ -76,27 +89,68 @@ bool AMMGameMode::GetRandomBlockTypeNameForCell(const AMMPlayGridCell* Cell, FNa
 		UE_LOG(LogMMGame, Error, TEXT("GameMode::GetRandomBlockTypeNameForCell - Could not find block type set with name %s"), *Cell->OwningGrid->GetBlockTypeSetName().ToString());
 		return false;
 	}
+	bool bUseExclusionList = ExcludedBlockNames.Num() > 0;
 	float WeightSum = 0.f;
-	float PickedWeight = FMath::RandRange(0.f, CurrentTotalBlockWeight);
-	for (FWeightedBlockType WBT : CurrentWeightedBlockTypes)
+	float PickedWeight = 0.f;
+	FName PickedBlockTypeName = NAME_None;
+	TArray<FWeightedBlockType> SelectedWeightedBlockTypes;
+	if (bUseExclusionList)
 	{
-		WeightSum += WBT.Weight;
-		if (WeightSum >= PickedWeight) 
+		float SpecialTotalBlockWeight = 0.f;
+		for (FWeightedBlockType WBT : CurrentWeightedBlockTypes) 
 		{
-			FBlockType* pBlockType = CachedBlockTypes.Find(WBT.BlockTypeName);
-			if (pBlockType) {
-				FoundBlockTypeName = pBlockType->Name;
-				//UE_LOG(LogMMGame, Log, TEXT("MMGameMode::GetRandomBlockTypeNameForCell - Got block type %s from BlockTypeSet %s"), *FoundBlockTypeName.ToString(), *CurrentWeightedBlockTypeSetName.ToString());
-				return true;
-			}
-			else {
-				UE_LOG(LogMMGame, Error, TEXT("MMGameMode::GetRandomBlockTypeNameForCell - Block type %s not found in BlockTypeSet %s"), *WBT.BlockTypeName.ToString(), *CurrentWeightedBlockTypeSetName.ToString());
-				return false;
+			if (bUseExclusionList && !ExcludedBlockNames.Contains(WBT.BlockTypeName)) 
+			{
+				SpecialTotalBlockWeight += WBT.Weight;
+				SelectedWeightedBlockTypes.Add(WBT);
 			}
 		}
+		if (SelectedWeightedBlockTypes.Num() == 0) 
+		{
+			// If we ended up with no block types allowed, then pick a random one to add
+			int32 RandomIndex = FMath::RandRange(0, CurrentWeightedBlockTypes.Num() - 1);
+			SelectedWeightedBlockTypes.Add(CurrentWeightedBlockTypes[RandomIndex]);
+		}
+		if (SelectedWeightedBlockTypes.Num() == 1) {
+			// If there is only one block type, just use that type
+			PickedBlockTypeName = SelectedWeightedBlockTypes[0].BlockTypeName;
+		}
+		else {
+			PickedWeight = FMath::RandRange(0.f, SpecialTotalBlockWeight);
+		}
 	}
-	UE_LOG(LogMMGame, Error, TEXT("MMGameMode::GetRandomBlockTypeNameForCell - No weighted block type found in BlockTypeSet %s"), *CurrentWeightedBlockTypeSetName.ToString());
-	return false;
+	else {
+		PickedWeight = FMath::RandRange(0.f, CurrentTotalBlockWeight);
+		SelectedWeightedBlockTypes = CurrentWeightedBlockTypes;
+	}
+	if (PickedBlockTypeName == NAME_None) 
+	{
+		// Haven't found a picked name yet, so find one in weighted list
+		for (FWeightedBlockType WBT : SelectedWeightedBlockTypes)
+		{
+			WeightSum += WBT.Weight;
+			if (WeightSum >= PickedWeight)
+			{
+				PickedBlockTypeName = WBT.BlockTypeName;
+				break;
+			}
+		}
+		if (PickedBlockTypeName == NAME_None) {
+			UE_LOG(LogMMGame, Error, TEXT("MMGameMode::GetRandomBlockTypeNameForCell - No weighted block type found in BlockTypeSet %s"), *CurrentWeightedBlockTypeSetName.ToString());
+			return false;
+		}
+	}
+	// Grab the actual block type from our block type name map to make sure the picked name is in our map. (should always be found)
+	FBlockType* pBlockType = CachedBlockTypes.Find(PickedBlockTypeName);
+	if (pBlockType) {
+		FoundBlockTypeName = pBlockType->Name;
+		//UE_LOG(LogMMGame, Log, TEXT("MMGameMode::GetRandomBlockTypeNameForCell - Got block type %s from BlockTypeSet %s"), *FoundBlockTypeName.ToString(), *CurrentWeightedBlockTypeSetName.ToString());
+		return true;
+	}
+	else {
+		UE_LOG(LogMMGame, Error, TEXT("MMGameMode::GetRandomBlockTypeNameForCell - Block type %s not found in BlockTypeSet %s"), *PickedBlockTypeName.ToString(), *CurrentWeightedBlockTypeSetName.ToString());
+		return false;
+	}
 }
 
 
@@ -104,6 +158,17 @@ bool AMMGameMode::GetBlockClass(TSubclassOf<AMMBlock>& BlockClass)
 {
 	BlockClass = AMMBlock::StaticClass();
 	return true;
+}
+
+
+float AMMGameMode::GetBlockMoveSpeed()
+{
+	AMMPlayerController* PC = Cast<AMMPlayerController>(UGameplayStatics::GetPlayerController(GetWorld(), 0));
+	check(PC);
+	if (PC) {
+		return DefaultBlockMoveSpeed * PC->GetBlockMoveSpeedMultiplier();
+	}
+	return DefaultBlockMoveSpeed;
 }
 
 
@@ -259,6 +324,9 @@ void AMMGameMode::InitCachedBlockTypes(bool bForceRefresh)
 void AMMGameMode::InitWeightedBlockTypeSets(bool bForceRefresh)
 {
 	if (!(CurrentWeightedBlockTypeSets.Num() == 0 || bForceRefresh)) { return; }
+	if (!IsValid(BlockWeightsTable)) {
+		UE_LOG(LogMMGame, Error, TEXT("MMGameMode::InitWeightedBlockTypeSets - BlockWeightsTable is null."));
+	}
 	CurrentWeightedBlockTypeSets.Empty(BlockWeightsTable->GetRowMap().Num());
 	CurrentTotalBlockWeight = 0.f;
 	for (const TPair<FName, uint8*>& It : BlockWeightsTable->GetRowMap())
@@ -302,11 +370,15 @@ bool AMMGameMode::InitWeightedBlockTypes(const FName& BlockTypeSetName, bool bFo
 void AMMGameMode::InitCachedGoodsTypes(bool bForceRefresh)
 {
 	if (CachedGoodsTypes.Num() > 0 && !bForceRefresh) { return; }
+	if (!IsValid(GoodsTable)) {
+		UE_LOG(LogMMGame, Error, TEXT("MMGameMode::InitCachedGoodsTypes - GoodsTable is null."));
+		return;
+	}
 	CachedGoodsTypes.Empty(GoodsTable->GetRowMap().Num());
 	for (const TPair<FName, uint8*>& It : GoodsTable->GetRowMap())
 	{
-		FGoodsType FoundGoodsType = *reinterpret_cast<FGoodsType*>(It.Value);
-		CachedGoodsTypes.Add(It.Key, FoundGoodsType);
+		FGoodsType* FoundGoodsType = reinterpret_cast<FGoodsType*>(It.Value);
+		CachedGoodsTypes.Add(It.Key, *FoundGoodsType);
 	}
 }
 

@@ -47,6 +47,26 @@ FCraftingRecipe URecipeManagerComponent::GetRecipeForGoodsName(const FName& Good
 }
 
 
+int32 URecipeManagerComponent::GetRecipeLevel(const FName& RecipeName)
+{
+	if (RecipeLevels.Contains(RecipeName)) {
+		return RecipeLevels[RecipeName];
+	}
+	return 0;
+}
+
+
+void URecipeManagerComponent::SetRecipeLevel(const FName& RecipeName, const int32 NewLevel)
+{
+	if (RecipeLevels.Contains(RecipeName)) {
+		RecipeLevels[RecipeName] = NewLevel;
+	}
+	else {
+		RecipeLevels.Add(RecipeName, NewLevel);
+	}
+}
+
+
 bool URecipeManagerComponent::GetBaseIngredientsForRecipe(const FName& RecipeName, TArray<FGoodsQuantity>& BaseGoods)
 {
 	AMMGameMode* GameMode = Cast<AMMGameMode>(UGameplayStatics::GetGameMode(this));
@@ -140,6 +160,26 @@ bool URecipeManagerComponent::GetGoodsForRecipe(const FCraftingRecipe& Recipe, T
 	}
 	return true;
 }
+
+
+int32 URecipeManagerComponent::CraftableCountForGoods(const TArray<FGoodsQuantity>& GoodsQuantities, const FCraftingRecipe& Recipe)
+{
+	int32 MinCraftings = 0;
+	int32 Quantity;
+	bool bFound;
+	for (FGoodsQuantity Ingredient : Recipe.CraftingInputs)
+	{
+		Quantity = UGoodsFunctionLibrary::CountInGoodsQuantityArray(Ingredient.Name, GoodsQuantities, bFound);
+		if (Quantity == 0 || Quantity < Ingredient.Quantity) {
+			return 0;
+		}
+		if (MinCraftings == 0 || (Quantity / Ingredient.Quantity) < MinCraftings) {
+			MinCraftings = Quantity / Ingredient.Quantity;
+		}
+	}
+	return MinCraftings;
+}
+
 
 // Called when the game starts
 void URecipeManagerComponent::BeginPlay()

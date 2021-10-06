@@ -1,6 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MMPlayerController.h"
+#include "Kismet/GameplayStatics.h"
+#include "../MixMatch.h"
+
 
 AMMPlayerController::AMMPlayerController()
 {
@@ -18,4 +21,53 @@ AMMPlayerController::AMMPlayerController()
 	if (RecipeManager) {
 		AddOwnedComponent(RecipeManager);
 	}
+}
+
+
+float AMMPlayerController::GetBlockMoveSpeedMultiplier_Implementation()
+{
+	return 1.f;
+}
+
+
+void AMMPlayerController::SetCurrentGrid(AMMPlayGrid* NewCurrentGrid)
+{
+	if (IsValid(NewCurrentGrid)) {
+		CurrentGrid = NewCurrentGrid;
+		OnCurrentGridChanged.Broadcast(CurrentGrid);
+	}
+}
+
+
+AMMPlayGrid* AMMPlayerController::GetCurrentGrid()
+{
+	return CurrentGrid;
+}
+
+
+bool AMMPlayerController::CraftRecipe(const FCraftingRecipe& Recipe)
+{
+	if (GoodsInventory->AddSubtractGoodsArray(Recipe.CraftingInputs, true, true))
+	{
+		TArray<FGoodsQuantity> CraftedGoods;
+		if (RecipeManager->GetGoodsForRecipe(Recipe, CraftedGoods))
+		{
+			GoodsInventory->AddSubtractGoodsArray(CraftedGoods, false, true);
+			OnRecipeCrafted.Broadcast(Recipe, 1);
+			return true;
+		}
+	}
+	return false;
+}
+
+
+int32 AMMPlayerController::GetRecipeLevel(const FName RecipeName)
+{
+	return RecipeManager->GetRecipeLevel(RecipeName);
+}
+
+
+void AMMPlayerController::SetRecipeLevel(const FName RecipeName, const int32 NewLevel)
+{
+	RecipeManager->SetRecipeLevel(RecipeName, NewLevel);
 }

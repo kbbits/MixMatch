@@ -106,6 +106,7 @@ void AMMPlayGridCell::DestroyCell()
 	if (IsValid(CurrentBlock))
 	{
 		CurrentBlock->DestroyBlock();
+		CurrentBlock = nullptr;
 	}
 	Destroy();
 }

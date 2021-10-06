@@ -56,7 +56,7 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame)
 	float BonusMatchPointsMultiplier = 1.f;
 
-	// Multipler applied to quantities of dropped goods from this block type with more than  minimum match size.
+	// Multipler applied to quantities of dropped goods from this block type with more than minimum match size.
 	// Total goods dropped =  normal drop goods for block + (normal drop goods for block * (NumBlocksOverMinMatchSize * BonusSizeGoodsMultiplier))
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame)
 	float BonusMatchGoodsMultiplier = 1.f;

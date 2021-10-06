@@ -37,6 +37,9 @@ void UInventoryActorComponent::BeginPlay()
 
 bool UInventoryActorComponent::ShouldUpdateClient()
 {
+	// Always returning false now. No replication in this game.
+	return false;
+
 	bool bUpdateClient = false;
 	APlayerController* TmpPC = Cast<APlayerController>(GetOwner());
 	if (TmpPC)
@@ -177,16 +180,24 @@ bool UInventoryActorComponent::AddSubtractGoodsArray(const TArray<FGoodsQuantity
 	bool bCanMakeUpdate = true;
 	for (FGoodsQuantity TmpGoodsDelta : GoodsDeltas)
 	{
-		Index = Inventory.IndexOfByKey(TmpGoodsDelta.Name);
-		if (Index == INDEX_NONE)
+		int32 NewGoodsIndex = NewGoods.IndexOfByKey(TmpGoodsDelta.Name);
+		if (NewGoodsIndex != INDEX_NONE)
 		{
-			GoodsQuantity.Name = TmpGoodsDelta.Name;
-			GoodsQuantity.Quantity = 0.0f;
+			GoodsQuantity = NewGoods[NewGoodsIndex];
 		}
 		else
 		{
-			FGoodsQuantity& TmpGoodsQuantity = Inventory[Index];
-			GoodsQuantity = TmpGoodsQuantity;
+			Index = Inventory.IndexOfByKey(TmpGoodsDelta.Name);
+			if (Index == INDEX_NONE)
+			{
+				GoodsQuantity.Name = TmpGoodsDelta.Name;
+				GoodsQuantity.Quantity = 0.0f;
+			}
+			else
+			{
+				FGoodsQuantity& TmpGoodsQuantity = Inventory[Index];
+				GoodsQuantity = TmpGoodsQuantity;
+			}
 		}
 		CurrentGoods.Add(GoodsQuantity);
 		//UE_LOG(LogTRGame, Log, TEXT("InventoryActorComponent - AddSubtractGoodsArray current: %s: %d."), *GoodsQuantity.Name.ToString(), (int32)GoodsQuantity.Quantity);
@@ -197,7 +208,12 @@ bool UInventoryActorComponent::AddSubtractGoodsArray(const TArray<FGoodsQuantity
 		}
 		else
 		{
-			NewGoods.Add(FGoodsQuantity(GoodsQuantity.Name, NetQuantity));
+			if (NewGoodsIndex != INDEX_NONE) {
+				NewGoods[NewGoodsIndex].Quantity = NetQuantity;
+			}
+			else {
+				NewGoods.Add(FGoodsQuantity(GoodsQuantity.Name, NetQuantity));
+			}
 			//UE_LOG(LogTRGame, Log, TEXT("InventoryActorComponent - AddSubtractGoodsArray new: %s: %d."), *GoodsQuantity.Name.ToString(), (int32)NetQuantity);
 		}
 	}
@@ -214,6 +230,12 @@ bool UInventoryActorComponent::AddSubtractGoodsArray(const TArray<FGoodsQuantity
 	}
 }
 
+bool UInventoryActorComponent::AddSubtractGoodsArray(const TArray<FGoodsQuantity>& GoodsDeltas, const bool bNegateGoodsQuantities, const bool bAddToSnapshot)
+{
+	TArray<FGoodsQuantity> TmpGoods;
+	return AddSubtractGoodsArray(GoodsDeltas, bNegateGoodsQuantities, TmpGoods, bAddToSnapshot);
+}
+
 
 void UInventoryActorComponent::ServerAddSubtractGoodsArray_Implementation(const TArray<FGoodsQuantity>& GoodsDeltas, const bool bNegateGoodsQuantities, const bool bAddToSnapshot)
 {
@@ -227,16 +249,24 @@ void UInventoryActorComponent::ServerAddSubtractGoodsArray_Implementation(const 
 
 	for (FGoodsQuantity TmpGoodsDelta : GoodsDeltas)
 	{
-		Index = Inventory.IndexOfByKey(TmpGoodsDelta.Name);
-		if (Index == INDEX_NONE)
+		int32 NewGoodsIndex = NewGoods.IndexOfByKey(TmpGoodsDelta.Name);
+		if (NewGoodsIndex != INDEX_NONE)
 		{
-			GoodsQuantity.Name = TmpGoodsDelta.Name;
-			GoodsQuantity.Quantity = 0.0f;
+			GoodsQuantity = NewGoods[NewGoodsIndex];
 		}
 		else
 		{
-			FGoodsQuantity& TmpGoodsQuantity = Inventory[Index];
-			GoodsQuantity = TmpGoodsQuantity;
+			Index = Inventory.IndexOfByKey(TmpGoodsDelta.Name);
+			if (Index == INDEX_NONE)
+			{
+				GoodsQuantity.Name = TmpGoodsDelta.Name;
+				GoodsQuantity.Quantity = 0.0f;
+			}
+			else
+			{
+				FGoodsQuantity& TmpGoodsQuantity = Inventory[Index];
+				GoodsQuantity = TmpGoodsQuantity;
+			}
 		}
 		//UE_LOG(LogTRGame, Log, TEXT("InventoryActorComponent - ServerAddSubtractGoodsArray curret New item: %s, %s: %d."), Index == INDEX_NONE ? TEXT("True") : TEXT("False"), *GoodsQuantity.Name.ToString(), (int32)GoodsQuantity.Quantity);
 		NetQuantity = GoodsQuantity.Quantity + (bNegateGoodsQuantities ? TmpGoodsDelta.Quantity * -1.0f : TmpGoodsDelta.Quantity);
@@ -245,7 +275,12 @@ void UInventoryActorComponent::ServerAddSubtractGoodsArray_Implementation(const 
 		}
 		else
 		{
-			NewGoods.Add(FGoodsQuantity(GoodsQuantity.Name, NetQuantity));
+			if (NewGoodsIndex != INDEX_NONE) {
+				NewGoods[NewGoodsIndex].Quantity = NetQuantity;
+			}
+			else {
+				NewGoods.Add(FGoodsQuantity(GoodsQuantity.Name, NetQuantity));
+			}
 		}
 		NewGoodsDeltas.Add(FGoodsQuantity(TmpGoodsDelta.Name, (bNegateGoodsQuantities ? TmpGoodsDelta.Quantity * -1.0f : TmpGoodsDelta.Quantity)));
 	}

@@ -31,6 +31,9 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame)
 		TAssetPtr<UTexture2D> Thumbnail;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame)
+		TAssetPtr<USoundBase> CraftSound;
+
 	// Currently unused. Additional requirements (not consumed) in order for the recipe to be crafted.
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame)
 		TArray<FName> RecipeRequirements;

@@ -13,11 +13,13 @@
 #include "MMPlayGridCell.h"
 #include "MMBlock.h"
 #include "MMGameMode.h"
+#include "InventoryActorComponent.h"
 #include "MMPlayerController.h"
 #include "Goods/GoodsQuantity.h"
+#include "Goods/GoodsFunctionLibrary.h"
 
 
-#define LOCTEXT_NAMESPACE "PuzzleBlockGrid"
+#define LOCTEXT_NAMESPACE "MMPlayGrid"
 
 AMMPlayGrid::AMMPlayGrid()
 {
@@ -55,6 +57,12 @@ AMMPlayGrid::AMMPlayGrid()
 	Billboard = CreateDefaultSubobject<UBillboardComponent>(TEXT("Billboard"));
 	Billboard->SetupAttachment(SceneRoot);
 #endif
+
+	// Inventory
+	GoodsInventory = CreateDefaultSubobject<UInventoryActorComponent>(TEXT("GoodsInventory"));
+	if (GoodsInventory) {
+		AddOwnedComponent(GoodsInventory);
+	}
 
 	// Set defaults
 	CellClass = AMMPlayGridCell::StaticClass();
@@ -112,36 +120,46 @@ void AMMPlayGrid::Tick(float DeltaSeconds)
 		}
 		break;
 	case EMMGridState::Settling:
-		//SettleTick(DeltaSeconds);
-		for (AMMBlock* CurBlock : ToBeUnsettledBlocks) {
-			if (!CurBlock->bUnsettled) {
-				UnsettleBlock(CurBlock);
-			}
-		}
-		ToBeUnsettledBlocks.Empty();
-		if (UnsettledBlocks.Num() == 0) 
-		{
-			if (BlocksToCheck.Num() > 0) {
-				CheckFlaggedForMatches();
-			}
-			else {
-				GridState = EMMGridState::Normal;
-			}
-		}
+		SettleTick(DeltaSeconds);
 		break;
+	default:
+		break;
+	}
+}
+
+
+void AMMPlayGrid::SettleTick(float DeltaSeconds)
+{
+	// Unsettle all waiting to be unsettled
+	for (AMMBlock* CurBlock : ToBeUnsettledBlocks) {
+		if (!CurBlock->bUnsettled) {
+			UnsettleBlock(CurBlock);
+		}
+	}
+	ToBeUnsettledBlocks.Empty();
+	// Iterate blocks in order blocks to settle them. Iterating all blocks in order so settling begins from bottom->up.
+	for (AMMBlock* Block : Blocks)
+	{
+		if (Block->BlockState == EMMGridState::Settling) {
+			Block->SettleTick(DeltaSeconds);
+		}
+	}	
+	if (UnsettledBlocks.Num() == 0)
+	{
+		if (BlocksToCheck.Num() > 0) {
+			CheckFlaggedForMatches();
+		}
+		else {
+			GridState = EMMGridState::Normal;
+		}
 	}
 }
 
 
 void AMMPlayGrid::BeginPlay()
 {
-	BlocksFallingIntoGrid.Reserve(SizeX);
-	for (int32 i = 0; i < SizeX; i++)
-	{
-		BlocksFallingIntoGrid.Add(i, FBlockSet());
-	}
 	Super::BeginPlay();
-
+	
 	SpawnGrid();
 	FillGridBlocks();
 }
@@ -149,7 +167,7 @@ void AMMPlayGrid::BeginPlay()
 
 int32 AMMPlayGrid::GetMinimumMatchSize()
 {
-	return 3;
+	return MinimumMatchSize;
 }
 
 
@@ -171,6 +189,7 @@ void AMMPlayGrid::SpawnGrid()
 {
 	// Destroy any existing grid
 	DestroyGrid();
+	InitBlocksFallingIntoGrid();
 
 	// Number of blocks
 	const int32 NumCells = SizeX * SizeY;
@@ -231,16 +250,25 @@ void AMMPlayGrid::SpawnGrid()
 }
 
 
+void AMMPlayGrid::FillGridBlocks()
+{
+	DestroyBlocks();
+	AMMPlayGridCell* Cell = nullptr;
+	for (int32 i = 0; i < Cells.Num(); i++)
+	{
+		AddRandomBlockInCell(Cells[i], 0.f, false, true);
+	}
+	UE_LOG(LogMMGame, Log, TEXT("MMPlayGrid::FillGridBlocks - Added %d blocks to grid"), Blocks.Num());
+}
+
+
 void AMMPlayGrid::DestroyGrid()
 {
 	for (AMMPlayGridCell* Cell : Cells)
 	{
 		Cell->DestroyCell();
 	}
-	UnsettledBlocks.Empty();
-	BlocksToCheck.Empty();
-	BlockMatches.Empty();
-	Blocks.Empty();
+	DestroyBlocks();
 	Cells.Empty();
 }
 
@@ -249,18 +277,27 @@ void AMMPlayGrid::DestroyBlocks()
 {
 	for (AMMPlayGridCell* Cell : Cells)
 	{
-		if (Cell->CurrentBlock) {
+		if (IsValid(Cell) && IsValid(Cell->CurrentBlock)) {
 			Cell->CurrentBlock->DestroyBlock();
 		}
 	}
 	UnsettledBlocks.Empty();
 	BlocksToCheck.Empty();
 	BlockMatches.Empty();
+	for (int32 i = 0; i < BlocksFallingIntoGrid.Num(); i++) {
+		BlocksFallingIntoGrid[i].Blocks.Empty();
+	}
 	Blocks.Empty();	
 }
 
 
 bool AMMPlayGrid::GetRandomBlockTypeNameForCell_Implementation(const AMMPlayGridCell* Cell, FName& FoundBlockTypeName)
+{
+	return GetRandomBlockTypeNameForCellEx(Cell, FoundBlockTypeName, TArray<FName>());
+}
+
+
+bool AMMPlayGrid::GetRandomBlockTypeNameForCellEx_Implementation(const AMMPlayGridCell* Cell, FName& FoundBlockTypeName, const TArray<FName>& ExcludedBlockNames)
 {
 	AMMGameMode* GameMode = Cast<AMMGameMode>(UGameplayStatics::GetGameMode(this));
 	if (Cell == nullptr) {
@@ -271,7 +308,13 @@ bool AMMPlayGrid::GetRandomBlockTypeNameForCell_Implementation(const AMMPlayGrid
 		UE_LOG(LogMMGame, Error, TEXT("MMPlayGrid::GetRandomBlockTypeNameForCell - Cannot get game mode"));
 		return false;
 	}
-	return GameMode->GetRandomBlockTypeNameForCell(Cell, FoundBlockTypeName);
+	if (FMath::FRandRange(0.f, 1.f) < DuplicateSpawnPreventionFactor) {
+		return GameMode->GetRandomBlockTypeNameForCell(Cell, FoundBlockTypeName, ExcludedBlockNames);
+	}
+	else {
+		return GameMode->GetRandomBlockTypeNameForCell(Cell, FoundBlockTypeName);
+	}
+
 }
 
 
@@ -286,10 +329,6 @@ AMMBlock* AMMPlayGrid::AddBlockInCell(AMMPlayGridCell* Cell, const FName& BlockT
 		UE_LOG(LogMMGame, Error, TEXT("MMPlayGrid::AddBlockInCell - Cannot get game mode"));
 		return nullptr;
 	}
-	//if (Cell->CurrentBlock != nullptr) {
-	//	UE_LOG(LogMMGame, Error, TEXT("MMPlayGrid::AddBlockInCell - Cannot add block to occupied cell: %s"), *Cell->GetCoords().ToString());
-	//	return nullptr;
-	//}
 	FVector BlockLocation = Cell->GetBlockLocalLocation() + FVector(0.f, 0.f, OffsetAboveCell);
 	FActorSpawnParameters SpawnParams;
 	SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
@@ -305,15 +344,6 @@ AMMBlock* AMMPlayGrid::AddBlockInCell(AMMPlayGridCell* Cell, const FName& BlockT
 			GetActorRotation(), 
 			SpawnParams
 		);
-		//if (Cell->CurrentBlock != nullptr) {
-		//	UE_LOG(LogMMGame, Error, TEXT("MMPlayGrid::AddBlockInCell - Cannot add spawned block to occupied cell: %s"), *Cell->GetCoords().ToString());
-		//	Blocks.RemoveSingle(NewBlock);
-		//	BlocksToCheck.RemoveSingle(NewBlock);
-		//	ToBeUnsettledBlocks.RemoveSingle(NewBlock);
-		//	UnsettledBlocks.RemoveSingle(NewBlock);
-		//	NewBlock->DestroyBlock();
-		//	return false;
-		//}
 		if (NewBlock)
 		{
 			NewBlock->ChangeOwningGridCell(Cell);
@@ -349,13 +379,10 @@ AMMBlock* AMMPlayGrid::AddBlockInCell(AMMPlayGridCell* Cell, const FName& BlockT
 			NewBlock->AttachToActor(this, FAttachmentTransformRules::SnapToTargetIncludingScale);
 			NewBlock->SetActorRelativeLocation(BlockLocation, false, nullptr, ETeleportType::ResetPhysics);
 			if (bAllowUnsettle) {
-				AMMPlayGridCell* TopCell = GetCell(FIntPoint(Cell->GetCoords().X, SizeY - 1));
+				AMMPlayGridCell* TopCell = GetTopCell(Cell->X);
 				if (!NewBlock->bFallingIntoGrid || (!IsValid(TopCell->CurrentBlock) || TopCell->CurrentBlock == NewBlock)) {
 					ToBeUnsettledBlocks.AddUnique(NewBlock);
 				}
-				//if (Cell->CurrentBlock != NewBlock) {
-				//	ToBeUnsettledBlocks.AddUnique(Cell->CurrentBlock);
-				//}
 			}
 			return NewBlock;
 		}
@@ -370,6 +397,11 @@ AMMBlock* AMMPlayGrid::AddBlockInCell(AMMPlayGridCell* Cell, const FName& BlockT
 
 AMMBlock* AMMPlayGrid::AddRandomBlockInCell(AMMPlayGridCell* Cell, const float OffsetAboveCell, const bool bAllowUnsettle, const bool bPreventMatches)
 {
+	return AddRandomBlockInCellEx(Cell, TArray<FName>(), OffsetAboveCell, bAllowUnsettle, bPreventMatches);
+}
+
+AMMBlock* AMMPlayGrid::AddRandomBlockInCellEx(UPARAM(ref) AMMPlayGridCell* Cell, const TArray<FName>& ExcludedBlockNames, const float OffsetAboveCell, const bool bAllowUnsettle, const bool bPreventMatches)
+{
 	if (bPauseNewBlocks) {
 		return nullptr;
 	}
@@ -383,7 +415,7 @@ AMMBlock* AMMPlayGrid::AddRandomBlockInCell(AMMPlayGridCell* Cell, const float O
 	{
 		Tries++;
 		bTryAgain = false;
-		if (GetRandomBlockTypeNameForCell(Cell, BlockTypeName))
+		if (GetRandomBlockTypeNameForCellEx(Cell, BlockTypeName, ExcludedBlockNames))
 		{
 			// AddBlockInCell should not allow unsettling if we are preventing matches. If we are preventing matches, we will unsettle the cell
 			// ourselves if the block was added successfully without matching.
@@ -412,15 +444,15 @@ AMMBlock* AMMPlayGrid::AddRandomBlockInCell(AMMPlayGridCell* Cell, const float O
 					else {
 						// Block was added with no match. Then queue block to be unsettled if unsettling is allowed.
 						if (bAllowUnsettle) {
-							AMMPlayGridCell* TopCell = GetCell(FIntPoint(Cell->GetCoords().X, SizeY - 1));
+							AMMPlayGridCell* TopCell = GetTopCell(Cell->X);
 							if (!NewBlock->bFallingIntoGrid || (!IsValid(TopCell->CurrentBlock) || TopCell->CurrentBlock == NewBlock)) {
 								ToBeUnsettledBlocks.AddUnique(NewBlock);
-							}							
+							}
 						}
 					}
 				}
 			}
-			else 
+			else
 			{
 				NewBlock = nullptr;
 			}
@@ -430,46 +462,27 @@ AMMBlock* AMMPlayGrid::AddRandomBlockInCell(AMMPlayGridCell* Cell, const float O
 }
 
 
-void AMMPlayGrid::DropRandomBlockInCellColumn(AMMPlayGridCell* Cell, const bool bPreventMatches)
+AMMBlock* AMMPlayGrid::DropRandomBlockInColumn(AMMPlayGridCell* Cell, const bool bPreventMatches)
+{
+	return DropRandomBlockInColumnEx(Cell, TArray<FName>(), bPreventMatches);
+}
+
+
+AMMBlock* AMMPlayGrid::DropRandomBlockInColumnEx(UPARAM(ref) AMMPlayGridCell* Cell, const TArray<FName>& ExcludedBlockNames, const bool bPreventMatches)
 {
 	if (bPauseNewBlocks) {
-		return;
+		return nullptr;
 	}
 	check(Cell);
 	int32 Column = Cell->X;
-	AMMPlayGridCell* TopCell = GetCell(FIntPoint(Column, SizeY - 1));
-	check(TopCell);
-	AMMPlayGridCell* TopBlockCell = nullptr;
+	AMMPlayGridCell* TopCell = GetTopCell(Column);
 	AMMPlayGridCell* FallToCell = TopCell;
-	AMMPlayGridCell* NextCell = nullptr;	
-	int32 TotalEmpty = 0;
-	if (BlocksFallingIntoGrid[Column].Blocks.Num() == 0)
-	{
-		for (int32 i = TopCell->Y; i >= 0; i--)
-		{
-			NextCell = GetCell(FIntPoint(Column, i));
-			if (!IsValid(NextCell->CurrentBlock)) {
-				TotalEmpty++;
-				if (TopBlockCell == nullptr) {
-					FallToCell = NextCell;
-				}
-			}
-			else {
-				if (TopBlockCell == nullptr) {
-					TopBlockCell = NextCell;
-					break;
-				}
-			}
-		}
-	}	
-	if (FallToCell == nullptr) {
-		//FallToCell = GetCell(TopCell->GetCoords() + (FIntPoint(0, -1) * (TotalEmpty - 1)));
-		FallToCell = TopCell;
-	}
+	check(TopCell);
 	check(FallToCell);
-	AMMBlock* NewBlock = AddRandomBlockInCell(
-		FallToCell, 
-		(TopCell->GetBlockLocalLocation().Z - FallToCell->GetBlockLocalLocation().Z) + 
+	AMMBlock* NewBlock = AddRandomBlockInCellEx(
+		FallToCell,
+		ExcludedBlockNames,
+		(TopCell->GetBlockLocalLocation().Z - FallToCell->GetBlockLocalLocation().Z) +
 		NewBlockDropInHeight +
 		((BlockSize.Z + CellBackgroundMargin) * (BlocksFallingIntoGrid[Column].Blocks.Num() + 1)),
 		true,
@@ -478,7 +491,7 @@ void AMMPlayGrid::DropRandomBlockInCellColumn(AMMPlayGridCell* Cell, const bool 
 	if (NewBlock) {
 		BlocksFallingIntoGrid[Column].Blocks.Add(NewBlock);
 	}
-
+	return NewBlock;
 }
 
 
@@ -486,52 +499,35 @@ void AMMPlayGrid::CellBecameOpen(AMMPlayGridCell* Cell)
 {
 	check(Cell);
 	if (IsValid(Cell->CurrentBlock)) { return; }
-	bool bFound = false;
-	for (AMMBlock* Block : ToBeUnsettledBlocks) 
-	{
-		if (Block->SettleToGridCell == Cell)
-		{
-			Block->ChangeOwningGridCell(Cell);
-			bFound = true;
-			break;
-		}
-	}
-	if (!bFound)
+	AMMBlock* FoundBlock = nullptr;
+	if (FoundBlock == nullptr)
 	{
 		for (AMMBlock* Block : UnsettledBlocks)
 		{
 			if (Block->SettleToGridCell == Cell)
 			{
 				Block->ChangeOwningGridCell(Cell);
-				bFound = true;
+				FoundBlock = Block;
 				break;
 			}
 		}
 	}
-	if (!bFound)
+	if (FoundBlock == nullptr)
 	{
-		for(AMMBlock* Block : BlocksFallingIntoGrid[Cell->GetCoords().X].Blocks)
+		for (AMMBlock* Block : ToBeUnsettledBlocks)
 		{
 			if (Block->SettleToGridCell == Cell)
 			{
 				Block->ChangeOwningGridCell(Cell);
-				bFound = true;
+				FoundBlock = Block;
 				break;
 			}
 		}
 	}
-}
-
-
-void AMMPlayGrid::FillGridBlocks()
-{
-	DestroyBlocks();
-	AMMPlayGridCell* Cell = nullptr;
-	for (int32 i = 0; i < Cells.Num(); i++)
+	if (FoundBlock == nullptr || (FoundBlock && FoundBlock->bUnsettled))
 	{
-		AddRandomBlockInCell(Cells[i], 0.f, false, true);
+		UnsettleBlockAboveCell(Cell);
 	}
-	UE_LOG(LogMMGame, Log, TEXT("MMPlayGrid::FillGridBlocks - Added %d blocks to grid"), Blocks.Num());
 }
 
 
@@ -549,6 +545,13 @@ AMMPlayGridCell* AMMPlayGrid::GetCell(const FIntPoint& Coords)
 		UE_LOG(LogMMGame, Error, TEXT("MMPlayGrid::GetCell - Found cell at index %d with incorrect coords %s"), Index, *Cell->GetCoords().ToString());
 	}
 	return nullptr;
+}
+
+
+AMMPlayGridCell* AMMPlayGrid::GetTopCell(const int32 Column)
+{
+	if (Column > SizeX - 1) { return nullptr; }
+	return GetCell(FIntPoint(Column, SizeY - 1));
 }
 
 
@@ -644,7 +647,7 @@ void AMMPlayGrid::CellClicked(AMMPlayGridCell* Cell)
 	if (GridState != EMMGridState::Normal) {
 		return;
 	}
-	if (Cell->CurrentBlock) {
+	if (IsValid(Cell->CurrentBlock)) {
 		BlockClicked(Cell->CurrentBlock);
 		return;
 	}
@@ -657,7 +660,7 @@ void AMMPlayGrid::CellClicked(AMMPlayGridCell* Cell)
 			{
 				PlayerMovesCount++;
 				Cell->Highlight(false);
-				SelectedBlock->Cell()->Highlight(false);
+				SelectedCell->Highlight(false);
 				SelectedBlock = nullptr;
 			}
 		}
@@ -734,7 +737,7 @@ bool AMMPlayGrid::MoveBlock(AMMBlock* MovingBlock, AMMPlayGridCell* ToCell)
 	}
 	if (CurrentMatches.Num() == 0)
 	{
-		// No matches, swap the blocks back
+		// No matches, swap the blocks back to orignal spots
 		PlaySoundQueue.AddUnique(MoveFailSound.Get());
 		FromCell->CurrentBlock = MovingBlock;
 		MovingBlock->OwningGridCell = FromCell;
@@ -755,6 +758,13 @@ bool AMMPlayGrid::MoveBlock(AMMBlock* MovingBlock, AMMPlayGridCell* ToCell)
 		if (SwappingBlock) {
 			UnsettledBlocks.AddUnique(SwappingBlock);
 			SwappingBlock->OnMove(FromCell);
+		}
+		else
+		{
+			// If we moved the block but didn't swap a block, then the block's original cell (FromCell) is now empty.
+			CellBecameOpen(FromCell);
+			// And we also need to drop an extra block into this column since the column lost one.
+			DropRandomBlockInColumn(FromCell);
 		}
 		BlockMatches.Append(CurrentMatches);
 		SortMatches();
@@ -795,7 +805,6 @@ bool AMMPlayGrid::CheckFlaggedForMatches()
 	}
 	else 
 	{
-		//GridState = EMMGridState::Normal;
 		return false;
 	}
 }
@@ -806,7 +815,7 @@ bool AMMPlayGrid::CheckForMatches(AMMBlock* CheckBlock, UBlockMatch** HorizMatch
 	if (CheckBlock == nullptr) {
 		return false;
 	}
-	UE_LOG(LogMMGame, Log, TEXT("MMPlayGrid::CheckForMatches - ######### Checking block %s at %s"), *CheckBlock->GetName(), *CheckBlock->GetCoords().ToString());
+	//UE_LOG(LogMMGame, Log, TEXT("MMPlayGrid::CheckForMatches - ######### Checking block %s at %s"), *CheckBlock->GetName(), *CheckBlock->GetCoords().ToString());
 	if (!CheckBlock->bMatchedHorizontal) {
 		MatchHorizontal(CheckBlock, HorizMatchPtr, bMarkBlocks);
 	}
@@ -857,7 +866,9 @@ int32 AMMPlayGrid::MatchVertical(UPARAM(ref) AMMBlock* StartBlock, UBlockMatch**
 				}
 			}
 			(*MatchPtr)->Orientation = EMMOrientation::Vertical;
-			if (bMarkBlocks) { (*MatchPtr)->Sort(); }
+			if (bMarkBlocks) { 
+				(*MatchPtr)->Sort(); 
+			}
 		}
 		else
 		{
@@ -874,19 +885,19 @@ int32 AMMPlayGrid::MatchDirection(AMMBlock* StartBlock, const EMMDirection Direc
 	if (StartBlock == nullptr) { return false; }
 	if (StartBlock->Cell())
 	{
-		if (StartBlock->Cell()->CurrentBlock != StartBlock) {
-			UE_LOG(LogMMGame, Log, TEXT("  MMPlayGrid::MatchDirection - Cell at start coords: %s has different block %s than start block %s"), *(StartBlock->Cell()->GetCoords()).ToString(), *StartBlock->Cell()->CurrentBlock->GetName(), *StartBlock->GetName());
-		}
-		if (*MatchPtr) {
-			UE_LOG(LogMMGame, Log, TEXT("  MMPlayGrid::MatchDirection - Matches: %d direction coords %s"), (*MatchPtr)->Blocks.Num(), *UMMMath::DirectionToOffset(Direction).ToString());
-		}
-		UE_LOG(LogMMGame, Log, TEXT("  MMPlayGrid::MatchDirection - Start coords: %s"), *(StartBlock->Cell()->GetCoords()).ToString());
+		//if (StartBlock->Cell()->CurrentBlock != StartBlock) {
+		//	UE_LOG(LogMMGame, Log, TEXT("  MMPlayGrid::MatchDirection - Cell at start coords: %s has different block %s than start block %s"), *(StartBlock->Cell()->GetCoords()).ToString(), *StartBlock->Cell()->CurrentBlock->GetName(), *StartBlock->GetName());
+		//}
+		//if (*MatchPtr) {
+		//	UE_LOG(LogMMGame, Log, TEXT("  MMPlayGrid::MatchDirection - Matches: %d direction coords %s"), (*MatchPtr)->Blocks.Num(), *UMMMath::DirectionToOffset(Direction).ToString());
+		//}
+		//UE_LOG(LogMMGame, Log, TEXT("  MMPlayGrid::MatchDirection - Start coords: %s"), *(StartBlock->Cell()->GetCoords()).ToString());
 		FIntPoint NeighborCoords = StartBlock->Cell()->GetCoords() + UMMMath::DirectionToOffset(Direction);
-		UE_LOG(LogMMGame, Log, TEXT("  MMPlayGrid::MatchDirection - Neighbor coords: %s"), *NeighborCoords.ToString());
+		//UE_LOG(LogMMGame, Log, TEXT("  MMPlayGrid::MatchDirection - Neighbor coords: %s"), *NeighborCoords.ToString());
 		AMMPlayGridCell* NeighborCell = GetCell(NeighborCoords);
-		if (NeighborCell) {
-			UE_LOG(LogMMGame, Log, TEXT("  MMPlayGrid::MatchDirection - Neighbor cell %s coords: %s"), *NeighborCell->GetName(), *NeighborCoords.ToString());
-		}
+		//if (NeighborCell) {
+		//	UE_LOG(LogMMGame, Log, TEXT("  MMPlayGrid::MatchDirection - Neighbor cell %s coords: %s"), *NeighborCell->GetName(), *NeighborCoords.ToString());
+		//}
 		if (NeighborCell && IsValid(NeighborCell->CurrentBlock))
 		{
 			if ( (UMMMath::DirectionIsHorizontal(Direction) && NeighborCell->CurrentBlock->bMatchedHorizontal) ||
@@ -982,6 +993,7 @@ bool AMMPlayGrid::ResolveMatches()
 		{
 			if (CurBlock->Cell() && CurBlock->Cell()->CurrentBlock == CurBlock) {
 				CurBlock->Cell()->CurrentBlock = nullptr;
+				CellBecameOpen(CurBlock->Cell());
 			}
 			CurBlock->OnMatched(CurMatch);
 			PlaySoundQueue.AddUnique(CurBlock->MatchSound.Get());			
@@ -991,8 +1003,7 @@ bool AMMPlayGrid::ResolveMatches()
 	if (TotalGoods.Num() > 0)
 	{
 		AMMPlayerController* PC = Cast<AMMPlayerController>(UGameplayStatics::GetPlayerController(GetWorld(), 0));
-		TArray<FGoodsQuantity> NewGoodsTotals;
-		PC->GoodsInventory->AddSubtractGoodsArray(TotalGoods, false, NewGoodsTotals, true);
+		PC->GoodsInventory->AddSubtractGoodsArray(TotalGoods, false, true);
 	}
 	return true;
 }
@@ -1026,39 +1037,6 @@ bool AMMPlayGrid::PerformActionsForMatch(UBlockMatch* Match)
 						bAnyPerformedForBlock = bAnyPerformed = true;
 					}
 				}
-				//if (Trigger.ActionType.ActionQuantityType == EMMBlockQuantity::PerMatch)
-				//{
-				//	// PerMatch do it only once for this match
-				//	if (!ProcessedBlockTypeNames.Contains(Block->GetBlockType().Name))
-				//	{
-				//		ProcessedBlockTypeNames.Add(Block->GetBlockType().Name);
-				//		if (PerformActionType(Trigger.ActionType, Match)) {
-				//			bAnyPerformedForBlock = bAnyPerformed = true;
-				//		}
-				//	}
-				//}
-				//else if (Trigger.ActionType.ActionQuantityType == EMMBlockQuantity::PerBlock)
-				//{
-				//	// PerBlock do it for each block
-				//	if (PerformActionType(Trigger.ActionType, Match)) {
-				//		bAnyPerformedForBlock = bAnyPerformed = true;
-				//	}
-				//}
-				//else if (Trigger.ActionType.ActionQuantityType == EMMBlockQuantity::PerBlockOverMin)
-				//{
-				//	// PerBlockOverMin do it once for each block over min match size. i.e. BonusMatchSize
-				//	if (!ProcessedBlockTypeNames.Contains(Block->GetBlockType().Name))
-				//	{
-				//		ProcessedBlockTypeNames.Add(Block->GetBlockType().Name);
-				//		// Call it once for each BonusMatchSize
-				//		for (int32 i = 1; i <= BonusMatchSize; i++)
-				//		{
-				//			if (PerformActionType(Trigger.ActionType, Match)) {
-				//				bAnyPerformedForBlock = bAnyPerformed = true;
-				//			}
-				//		}
-				//	}
-				//}
 			}
 			if (bAnyPerformedForBlock) {
 				ProcessedBlockTypeNames.Add(Block->GetBlockType().Name);
@@ -1084,6 +1062,7 @@ bool AMMPlayGrid::PerformActionType(const FMatchActionType& MatchActionType, con
 void AMMPlayGrid::SettleBlocks()
 {
 	GridState = EMMGridState::Settling;
+	DebugBlocks(FString("SettleBlocksStart"));
 	// Unsettle all blocks that were queued for unsettling
 	for (AMMBlock* CurBlock : UnsettledBlocks)
 	{
@@ -1092,7 +1071,7 @@ void AMMPlayGrid::SettleBlocks()
 		}
 	}
 	// TODO: Remove this debug
-	DebugBlocks(FString("SettleBlocks"));
+	DebugBlocks(FString("SettleBlocksDone"));
 }
 
 
@@ -1125,7 +1104,7 @@ void AMMPlayGrid::UnsettleBlockAboveCell(AMMPlayGridCell* Cell)
 		}
 	}
 	else {
-		// At top of column, so unsettle lowest block falling into grid
+		// At top of column, so unsettle lowest block falling into grid that is not already unsettled
 		int32 Col = Cell->GetCoords().X;
 		AMMBlock* FirstBlock = nullptr;
 		for (int32 i = 0; i < BlocksFallingIntoGrid[Col].Blocks.Num(); i++)
@@ -1142,51 +1121,6 @@ void AMMPlayGrid::UnsettleBlockAboveCell(AMMPlayGridCell* Cell)
 			ToBeUnsettledBlocks.AddUnique(FirstBlock);
 		}
 	}
-	// Check for spawning new blocks
-	/*
-	if (bPauseNewBlocks) {
-		return;
-	}
-	int32 NetEmptyAbove = 0;
-	AMMPlayGridCell* NextCell = nullptr;
-	AMMPlayGridCell* FallToCell = nullptr;
-	AMMPlayGridCell* AddToCell = nullptr;
-	AMMPlayGridCell* TopCell = GetCell(FIntPoint(Cell->GetCoords().X, SizeY -1));
-	check(TopCell);
-	if (AboveCell)
-	{		
-		for (int32 i = AboveCell->GetCoords().Y + 1; i < SizeY; i++)
-		{
-			NextCell = GetCell(FIntPoint(AboveCell->GetCoords().X, i));
-			if (IsValid(NextCell->CurrentBlock)) 
-			{ 
-				FallToCell = nullptr;
-				NetEmptyAbove--;
-			}
-			else 
-			{ 
-				if (FallToCell == nullptr) {
-					FallToCell = NextCell;
-				}
-				NetEmptyAbove++;
-			}
-		}
-	}
-	if (FallToCell == nullptr) {
-		FallToCell = TopCell;
-	}
-	if (!AboveCell && (Cell->GetCoords().Y == (SizeY - 1)) && Cell->CurrentBlock == nullptr) {
-		// Unsettling cell above top row then drop new block into our empty top cell
-		AddToCell = TopCell;
-	}
-	else if (AboveCell)// && NetEmptyAbove > 0)
-	{
-		AddToCell = FallToCell;
-	}
-	if (bAddBlock) {
-		AddRandomBlockInCell(AddToCell, (TopCell->GetBlockLocalLocation().Z - AddToCell->GetBlockLocalLocation().Z) + ((BlockSize.Z + CellBackgroundMargin) * (BlockCountFallingIntoGrid + 1)) + NewBlockDropInHeight);
-	}
-	*/
 }
 
 
@@ -1222,29 +1156,7 @@ void AMMPlayGrid::BlockFinishedMatch(AMMBlock* Block, UBlockMatch* Match)
 	//int32 BlockIndex;
 	bool bWholeMatchFinished = true;
 	bool bTmpAllMatchesFinished = true;;
-	/*for (int32 i = 0; i < BlockMatches.Num(); i++)
-	{ 
-		bWholeMatchFinished = true;
-		if (BlockMatches[i] == Match && BlockMatches[i]->Blocks.Find(Block, BlockIndex)) 
-		{
-			if (BlockMatches[i]->Blocks[BlockIndex]->Cell() && BlockMatches[i]->Blocks[BlockIndex]->Cell()->CurrentBlock == BlockMatches[i]->Blocks[BlockIndex]) {
-				BlockMatches[i]->Blocks[BlockIndex]->Cell()->CurrentBlock = nullptr;
-			}
-			for (AMMBlock* CurBlock : BlockMatches[i]->Blocks)
-			{
-				if (!CurBlock->IsMatchFinished(BlockMatches[i])) 
-				{
-					bWholeMatchFinished = false;
-					break;
-				}
-			}
-			if (bWholeMatchFinished) 
-			{
-				PerformActionsForMatch(BlockMatches[i]);
-				BlockMatches[i]->bMatchFinished = true;
-			}		
-		}
-	}*/
+	
 	if (Block->OwningGridCell && Block->OwningGridCell->CurrentBlock == Block) {
 		// Clear the owning grid cell. The cell is now open for other blocks.
 		Block->OwningGridCell->CurrentBlock = nullptr;
@@ -1262,9 +1174,7 @@ void AMMPlayGrid::BlockFinishedMatch(AMMBlock* Block, UBlockMatch* Match)
 			break;
 		}
 	}
-	if (bWholeMatchFinished)
-	{
-		PerformActionsForMatch(Match);
+	if (bWholeMatchFinished) {
 		Match->bMatchFinished = true;
 	}
 	// See if all matches have finished
@@ -1276,8 +1186,7 @@ void AMMPlayGrid::BlockFinishedMatch(AMMBlock* Block, UBlockMatch* Match)
 			break;
 		}
 	}
-	if (bTmpAllMatchesFinished)
-	{
+	if (bTmpAllMatchesFinished) {
 		bAllMatchesFinished = true;
 	}
 }
@@ -1287,6 +1196,12 @@ void AMMPlayGrid::AllMatchesFinished()
 {
 	bAllMatchesFinished = false;
 	TArray<AMMPlayGridCell*> SpawnCells;
+	FName LastBlockTypeNameA = NAME_None;
+	FName LastBlockTypeNameB = NAME_None;
+	// Perform all match actions
+	for (UBlockMatch* BlockMatch : BlockMatches){
+		PerformActionsForMatch(BlockMatch);
+	}
 	// When all matches finished, destroy blocks in all the matches.
 	// Also unsettle any blocks above each destroyed block if the cell is still empty.
 	for (int32 i = 0; i < BlockMatches.Num(); i++)
@@ -1300,18 +1215,17 @@ void AMMPlayGrid::AllMatchesFinished()
 				AMMPlayGridCell* UnsettleAboveCell = nullptr;
 				if (CurBlock->Cell() != nullptr)
 				{
-					if (CurBlock->OwningGridCell && CurBlock->OwningGridCell->CurrentBlock == CurBlock) {
-						CurBlock->OwningGridCell->CurrentBlock = nullptr;
-						CellBecameOpen(CurBlock->OwningGridCell);
-					}
-					if (CurBlock->SettleToGridCell && CurBlock->SettleToGridCell->CurrentBlock == CurBlock) {
-						CurBlock->SettleToGridCell->CurrentBlock = nullptr;
-						CellBecameOpen(CurBlock->SettleToGridCell);
-					}
+					//if (CurBlock->OwningGridCell && CurBlock->OwningGridCell->CurrentBlock == CurBlock) {
+					//	CurBlock->OwningGridCell->CurrentBlock = nullptr;
+					//	CellBecameOpen(CurBlock->OwningGridCell);
+					//}
+					//if (CurBlock->SettleToGridCell && CurBlock->SettleToGridCell->CurrentBlock == CurBlock) {
+					//	CurBlock->SettleToGridCell->CurrentBlock = nullptr;
+					//	CellBecameOpen(CurBlock->SettleToGridCell);
+					//}
 					if (!IsValid(CurBlock->Cell()->CurrentBlock)) {
-						UnsettleAboveCell = CurBlock->Cell();
 						SpawnCells.AddUnique(CurBlock->Cell());
-					}					
+					}
 				}
 				Blocks.RemoveSingle(CurBlock);
 				CurBlock->DestroyBlock();
@@ -1322,8 +1236,19 @@ void AMMPlayGrid::AllMatchesFinished()
 		}
 		BlockMatches[i]->Blocks.Empty();
 	}
-	for (AMMPlayGridCell* SpawnCell : SpawnCells) {
-		DropRandomBlockInCellColumn(SpawnCell);
+	if (!bPauseNewBlocks) {
+		AMMBlock* NewBlock;
+		TArray<FName> ExcludedNames;
+		for (AMMPlayGridCell* SpawnCell : SpawnCells) {
+			NewBlock = DropRandomBlockInColumnEx(SpawnCell, ExcludedNames);
+			if (NewBlock && GetMinimumMatchSize() > 2) {
+				if (ExcludedNames.Num() >= GetMinimumMatchSize() - 1) {
+					ExcludedNames.SwapMemory(0, ExcludedNames.Num() - 1);
+					ExcludedNames.Pop(false);
+				}
+				ExcludedNames.Add(NewBlock->GetBlockType().Name);			
+			}
+		}
 	}
 	BlockMatches.Empty();	
 }
@@ -1346,10 +1271,17 @@ bool AMMPlayGrid::DebugBlocks(const FString& ContextString)
 	UE_LOG(LogMMGame, Log, TEXT("DebugBlocks: Blocks list has %d blocks"), Blocks.Num());
 	UE_LOG(LogMMGame, Log, TEXT("DebugBlocks: UnsettledBlocks has %d blocks"), UnsettledBlocks.Num());
 	UE_LOG(LogMMGame, Log, TEXT("DebugBlocks: ToBeUnsettledBlocks has %d blocks"), ToBeUnsettledBlocks.Num());
+	UE_LOG(LogMMGame, Log, TEXT("DebugBlocks: BlocksToCheck has %d blocks"), BlocksToCheck.Num());
+	for (int32 i = 0; i < BlocksFallingIntoGrid.Num(); i++) {
+		UE_LOG(LogMMGame, Log, TEXT("DebugBlocks: BlocksFallingIntoGrid[%d] has %d blocks"), i, BlocksFallingIntoGrid[i].Blocks.Num());
+	}
+	if (BlockMatches.Num() > 0) {
+		UE_LOG(LogMMGame, Log, TEXT("DebugBlocks: BlockMatches has %d matches"), BlockMatches.Num());
+	}
 	for (AMMBlock* CurBlock : Blocks)
 	{
 		if (CurBlock->Cell() == nullptr) {
-			UE_LOG(LogMMGame, Warning, TEXT("DebugBlocks: Block %s has no owning grid cell"), *CurBlock->GetName());
+			UE_LOG(LogMMGame, Warning, TEXT("DebugBlocks: Block %s has no cell"), *CurBlock->GetName());
 			bAnyError = true;
 		}
 		else if (CurBlock->Cell()->CurrentBlock == nullptr) {
@@ -1358,7 +1290,7 @@ bool AMMPlayGrid::DebugBlocks(const FString& ContextString)
 		}
 		else if (CurBlock->Cell()->CurrentBlock != CurBlock)
 		{
-			UE_LOG(LogMMGame, Warning, TEXT("DebugBlocks: Block %s at %s owning grid cell references different block %s at %s"), *CurBlock->GetName(), *CurBlock->GetCoords().ToString(), *CurBlock->Cell()->CurrentBlock->GetName(), *CurBlock->Cell()->CurrentBlock->GetCoords().ToString());
+			UE_LOG(LogMMGame, Log, TEXT("DebugBlocks: Block %s at %s owning grid cell references different block %s at %s"), *CurBlock->GetName(), *CurBlock->GetCoords().ToString(), *CurBlock->Cell()->CurrentBlock->GetName(), *CurBlock->Cell()->CurrentBlock->GetCoords().ToString());
 			bAnyError = true;
 		}
 		
@@ -1402,6 +1334,25 @@ bool AMMPlayGrid::DebugBlocks(const FString& ContextString)
 		}
 	}
 	return bAnyError;
+}
+
+
+void AMMPlayGrid::InitBlocksFallingIntoGrid()
+{
+	if (BlocksFallingIntoGrid.Num() != SizeX) {
+		BlocksFallingIntoGrid.Empty();
+		BlocksFallingIntoGrid.Reserve(SizeX);
+		for (int32 i = 0; i < SizeX; i++)
+		{
+			BlocksFallingIntoGrid.Add(i, FBlockSet());
+		}
+	}
+	else {
+		for (int32 i = 0; i < BlocksFallingIntoGrid.Num(); i++)
+		{
+			BlocksFallingIntoGrid[i].Blocks.Empty();
+		}
+	}
 }
 
 #undef LOCTEXT_NAMESPACE

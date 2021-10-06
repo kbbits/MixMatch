@@ -27,9 +27,6 @@ public:
 
 public:
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	float BlockMoveSpeed;
-
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
 	UDataTable* GoodsTable;
 
@@ -65,6 +62,13 @@ protected:
 	UPROPERTY()
 	TMap<FName, FGoodsType> CachedGoodsTypes;
 
+private:
+
+	UPROPERTY(EditAnywhere, meta = (AllowPrivateAccess = "true"))
+	float DefaultBlockMoveSpeed;
+
+	// ####### FUNCTIONS
+
 public:
 
 	virtual void BeginPlay() override;
@@ -79,7 +83,12 @@ public:
 	
 	bool GetRandomBlockTypeNameForCell(const AMMPlayGridCell* Cell, FName& FoundBlockTypeName);
 
+	bool GetRandomBlockTypeNameForCell(const AMMPlayGridCell* Cell, FName& FoundBlockTypeName, const TArray<FName>& ExcludedBlockNames);
+
 	bool GetBlockClass(TSubclassOf<class AMMBlock>& BlockClass);
+
+	UFUNCTION(BlueprintPure)
+	float GetBlockMoveSpeed();
 
 	UFUNCTION(BlueprintNativeEvent)
 	bool GetGoodsForMatch(const UBlockMatch* Match, FGoodsQuantitySet& MatchGoods);

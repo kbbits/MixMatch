@@ -87,6 +87,14 @@ public:
 
 protected:
 
+	/** Minimum match size. Default = 3 */
+	UPROPERTY(EditAnywhere)
+	int32 MinimumMatchSize = 3;
+
+	/** The percent chance that the grid will add duplicate block type prevention logic for each block dropped in. Default = 0.5*/
+	UPROPERTY(EditAnywhere)
+	float DuplicateSpawnPreventionFactor = 0.5;
+
 	UPROPERTY()
 	TArray<AMMPlayGridCell*> Cells;
 
@@ -117,6 +125,10 @@ private:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
 	class UTextRenderComponent* ScoreText;
 
+	/** Inventory for this grid */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame, meta = (AllowPrivateAccess = "true"))
+	class UInventoryActorComponent* GoodsInventory;
+
 	/** StaticMesh component for the clickable blocks toggle control */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
 	class UStaticMeshComponent* BlockToggleControlMesh;
@@ -132,8 +144,10 @@ public:
 
 	virtual void Tick(float DeltaSeconds) override;
 
+	void SettleTick(float DeltaSeconds);
+
 	/** Minimum number of matching blocks to qualify as a match */
-	UFUNCTION(BlueprintCallable)
+	UFUNCTION(BlueprintPure)
 	int32 GetMinimumMatchSize();
 
 	UFUNCTION(BlueprintCallable)
@@ -142,9 +156,14 @@ public:
 	UFUNCTION(BlueprintPure)
 	FName GetBlockTypeSetName();
 
+	//### Spawn Destroy **/
+
 	/** Spawns the grid's background cells */
 	UFUNCTION(BlueprintCallable, CallInEditor)
 	void SpawnGrid();
+
+	UFUNCTION(BlueprintCallable, CallInEditor)
+	void FillGridBlocks();
 
 	UFUNCTION(BlueprintCallable, CallInEditor)
 	void DestroyGrid();
@@ -152,9 +171,14 @@ public:
 	UFUNCTION(BlueprintCallable, CallInEditor)
 	void DestroyBlocks();
 
+	//### Add Blocks **/
+
 	// Base class implementation calls GameMode->GetRandomBlockTypeNameForCell
 	UFUNCTION(BlueprintNativeEvent)
 	bool GetRandomBlockTypeNameForCell(const AMMPlayGridCell* Cell, FName& FoundBlockTypeName);
+
+	UFUNCTION(BlueprintNativeEvent)
+	bool GetRandomBlockTypeNameForCellEx(const AMMPlayGridCell* Cell, FName& FoundBlockTypeName, const TArray<FName>& ExcludedBlockNames);
 
 	UFUNCTION(BlueprintCallable)
 	AMMBlock* AddBlockInCell(UPARAM(ref) AMMPlayGridCell* Cell, const FName& BlockType, const float OffsetAboveCell = 0.f, const bool bAllowUnsettle = true);
@@ -162,20 +186,30 @@ public:
 	UFUNCTION(BlueprintCallable)
 	AMMBlock* AddRandomBlockInCell(UPARAM(ref) AMMPlayGridCell* Cell, const float OffsetAboveCell = 0.f, const bool bAllowUnsettle = true, const bool bPreventMatches = false);
 
+	UFUNCTION(BlueprintCallable)
+	AMMBlock* AddRandomBlockInCellEx(UPARAM(ref) AMMPlayGridCell* Cell, const TArray<FName>& ExcludedBlockNames, const float OffsetAboveCell = 0.f, const bool bAllowUnsettle = true, const bool bPreventMatches = false);
+
 	/** Drop block from above grid to fall into given cell */
 	UFUNCTION(BlueprintCallable)
-	void DropRandomBlockInCellColumn(UPARAM(ref) AMMPlayGridCell* Cell, const bool bPreventMatches = false);
+	AMMBlock* DropRandomBlockInColumn(UPARAM(ref) AMMPlayGridCell* Cell, const bool bPreventMatches = false);
+
+	UFUNCTION(BlueprintCallable)
+	AMMBlock* DropRandomBlockInColumnEx(UPARAM(ref) AMMPlayGridCell* Cell, const TArray<FName>& ExcludedBlockNames, const bool bPreventMatches = false);
 
 	void CellBecameOpen(AMMPlayGridCell* Cell);
 
-	UFUNCTION(BlueprintCallable, CallInEditor)
-	void FillGridBlocks();
+	//### Get Cells & Blocks **/
 
 	UFUNCTION(BlueprintPure)
 	AMMPlayGridCell* GetCell(const FIntPoint& Coords);
 
 	UFUNCTION(BlueprintPure)
+	AMMPlayGridCell* GetTopCell(const int32 Column);
+
+	UFUNCTION(BlueprintPure)
 	AMMBlock* GetBlock(const FIntPoint& Coords);
+
+	//## Grid & Cell Locations **/
 
 	UFUNCTION(BlueprintPure)
 	FVector GridCoordsToWorldLocation(const FIntPoint& GridCoords);
@@ -186,6 +220,8 @@ public:
 
 	UFUNCTION(BlueprintPure)
 	FVector GridFloatCoordsToWorldLocation(const FVector2D& GridCoords);
+
+	//### Actions 
 
 	void BlockClicked(AMMBlock* Block);
 
@@ -203,12 +239,10 @@ public:
 	UFUNCTION(BlueprintCallable)
 	bool MoveBlock(UPARAM(ref) AMMBlock* MovingBlock, UPARAM(ref) AMMPlayGridCell* ToCell);
 
+	//### Matching
+
 	UFUNCTION(BlueprintCallable)
 	bool CheckFlaggedForMatches();
-
-
-	// ###  TODO: Change matching functions to use cell instead of block.
-
 
 	//UFUNCTION(BlueprintCallable)
 	//bool CheckForMatches(UPARAM(ref) AMMBlock* CheckBlock, UPARAM(ref) UBlockMatch** HorizMatchPtr, UBlockMatch** VertMatchPtr, const bool bMarkBlocks = true);
@@ -238,6 +272,8 @@ public:
 	UFUNCTION()
 	bool PerformActionType(const FMatchActionType& MatchActionType, const UBlockMatch* Match);
 
+	//### Settling
+
 	UFUNCTION()
 	void SettleBlocks();
 
@@ -252,7 +288,9 @@ public:
 	void BlockFinishedMatch(AMMBlock* Block, UBlockMatch* Match);
 
 	void AllMatchesFinished();
-	
+
+	//### Misc.
+
 	UFUNCTION(BlueprintCallable)
 	void PlaySounds(const TArray<USoundBase*> Sounds);
 
@@ -267,6 +305,8 @@ protected:
 	// Begin AActor interface
 	virtual void BeginPlay() override;
 	// End AActor interface
+
+	void InitBlocksFallingIntoGrid();
 
 };
 

@@ -49,6 +49,12 @@ public:
 	UFUNCTION(BlueprintCallable)
 	FCraftingRecipe GetRecipeForGoodsName(const FName& GoodsName, bool& bFound);
 
+	UFUNCTION(BlueprintPure)
+	int32 GetRecipeLevel(const FName& RecipeName);
+
+	UFUNCTION(BlueprintCallable)
+	void SetRecipeLevel(const FName& RecipeName, const int32 NewLevel);
+
 	/** Gets BaseGoods as the total goods tagged with "Resource" needed to produce all preceding ingredient goods. 
 	 *	Returns true if recipe was found, false otherwise. */
 	UFUNCTION(BlueprintPure)
@@ -62,7 +68,11 @@ public:
 	/** Gets the output goods for crafting the given recipe once.
 	 *  Returns true if the recipe was found, false otherwise. */
 	UFUNCTION(BlueprintPure)
-	bool GetGoodsForRecipe(const FCraftingRecipe& RecipeName, TArray<FGoodsQuantity>& OutputGoods, const float QuantityScale = -1.f, const bool bExcludeBonusGoods = false);
+	bool GetGoodsForRecipe(const FCraftingRecipe& Recipe, TArray<FGoodsQuantity>& OutputGoods, const float QuantityScale = -1.f, const bool bExcludeBonusGoods = false);
+
+	/** Returns the number of times the given recipe could be crafted with the submitted goods quantities */
+	UFUNCTION(BlueprintPure)
+	int32 CraftableCountForGoods(const TArray<FGoodsQuantity>& GoodsQuantities, const FCraftingRecipe& Recipe);
 
 protected:
 
