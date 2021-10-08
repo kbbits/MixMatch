@@ -22,8 +22,8 @@ AMMBlock::AMMBlock()
 		ConstructorHelpers::FObjectFinderOptional<UMaterialInterface> AltMaterial;
 		FConstructorStatics()
 			: PlaneMesh(TEXT("/Game/Puzzle/Meshes/PuzzleCube.PuzzleCube"))
-			, BaseMaterial(TEXT("/Game/MixMatch/Materials/BlockBase_M.BlockBase_M"))
-			, AltMaterial(TEXT("/Game/MixMatch/Materials/BlockBlue_MI.BlockBlue_MI"))
+			, BaseMaterial(TEXT("/Game/MixMatch/Assets/Materials/BlockBase_M.BlockBase_M"))
+			, AltMaterial(TEXT("/Game/MixMatch/Assets/Materials/BlockBlue_MI.BlockBlue_MI"))
 		{
 		}
 	};
