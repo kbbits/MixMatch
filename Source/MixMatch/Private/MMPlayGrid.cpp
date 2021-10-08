@@ -199,7 +199,7 @@ void AMMPlayGrid::SpawnGrid()
 	SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 	SpawnParams.Owner = this;
 
-	// Loop to spawn each block
+	// Loop to spawn each cell
 	for (int32 Index = 0; Index < NumCells; Index++)
 	{
 		const float X = (Index % SizeX);
@@ -400,7 +400,7 @@ AMMBlock* AMMPlayGrid::AddRandomBlockInCell(AMMPlayGridCell* Cell, const float O
 	return AddRandomBlockInCellEx(Cell, TArray<FName>(), OffsetAboveCell, bAllowUnsettle, bPreventMatches);
 }
 
-AMMBlock* AMMPlayGrid::AddRandomBlockInCellEx(UPARAM(ref) AMMPlayGridCell* Cell, const TArray<FName>& ExcludedBlockNames, const float OffsetAboveCell, const bool bAllowUnsettle, const bool bPreventMatches)
+AMMBlock* AMMPlayGrid::AddRandomBlockInCellEx(AMMPlayGridCell* Cell, const TArray<FName>& ExcludedBlockNames, const float OffsetAboveCell, const bool bAllowUnsettle, const bool bPreventMatches)
 {
 	if (bPauseNewBlocks) {
 		return nullptr;

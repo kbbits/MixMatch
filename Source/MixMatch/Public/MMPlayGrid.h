@@ -12,7 +12,7 @@
 // Event dispatcher for when grid gives award for matches
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnMatchAwards, const TArray<UBlockMatch*>&, Matches);
 
-/** Class used to spawn grid and manage score */
+/** A match grid containing cells and blocks. */
 UCLASS(minimalapi)
 class AMMPlayGrid : public AActor
 {
@@ -46,7 +46,7 @@ public:
 	UPROPERTY(EditAnywhere)
 	FName BlockTypeSetName;
 
-	/** If true, blocks will be scaled to fill BlockSize - BlockMargin */
+	/** If true, blocks will be scaled to fill BlockSize - BlockMargin in it's cell. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 	bool bScaleBlocks;
 
@@ -58,7 +58,7 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 	float BlockMargin;
 
-	/** Spacing between the background cells meshes. */
+	/** Spacing between the cells. i.e. also the spacing between the background cell meshes. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 	float CellBackgroundMargin;
 
@@ -85,9 +85,12 @@ public:
 	UPROPERTY(BlueprintReadOnly)
 	int32 PlayerMovesCount;
 
+	/** Stop the new blocks from falling into the grid when other blocks are matched. 
+	 *  Currently used for dev/debug only. */
 	UPROPERTY(BlueprintReadWrite)
 	bool bPauseNewBlocks;
 
+	/** List of blocks, by column, that are currently marked as bFallingIntoGrid. i.e. the blocks "above" the grid. */
 	UPROPERTY(BlueprintReadOnly)
 	TMap<int32, FBlockSet> BlocksFallingIntoGrid;
 
@@ -101,25 +104,36 @@ protected:
 	UPROPERTY(EditAnywhere)
 	float DuplicateSpawnPreventionFactor = 0.5;
 
+	/** All of this grid's cells */
 	UPROPERTY()
 	TArray<AMMPlayGridCell*> Cells;
 
+	/** All of the blocks this grid has spawned. (that still exist) */
 	UPROPERTY()
 	TArray<AMMBlock*> Blocks;
 
+	/** List of blocks that have been unsettled but not yet settled. */
 	UPROPERTY(BlueprintReadOnly)
 	TArray<AMMBlock*> UnsettledBlocks;
 
+	/** Queue of blocks to be unsettled during the next settle tick. */
 	UPROPERTY(BlueprintReadOnly)
 	TArray<AMMBlock*> ToBeUnsettledBlocks;
 
+	/** List of blocks to check for adjacent matches. */
 	UPROPERTY(BlueprintReadOnly)
 	TArray<AMMBlock*> BlocksToCheck;
 
+	/** Simple queue of sounds to play. Sounds are played and queue is emptied on each tick. */
 	UPROPERTY()
 	TArray<USoundBase*> PlaySoundQueue;
 
+	/** Have all current matches finished? */
 	bool bAllMatchesFinished = false;
+
+	/** Inventory for this grid */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
+	class UInventoryActorComponent* GoodsInventory;
 
 private:
 
@@ -130,10 +144,6 @@ private:
 	/** Text component for the score */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
 	class UTextRenderComponent* ScoreText;
-
-	/** Inventory for this grid */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, SaveGame, meta = (AllowPrivateAccess = "true"))
-	class UInventoryActorComponent* GoodsInventory;
 
 	/** StaticMesh component for the clickable blocks toggle control */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
@@ -156,24 +166,29 @@ public:
 	UFUNCTION(BlueprintPure)
 	int32 GetMinimumMatchSize();
 
+	/** Set the name of the BlockTypeSet that is used by the grid to determine which blocks will be generated. */
 	UFUNCTION(BlueprintCallable)
 	bool SetBlockTypeSetName(const FName& NewBlockTypeSetName);
 
+	/** Get the name of the curent BlockTypeSet the grid is using. */
 	UFUNCTION(BlueprintPure)
 	FName GetBlockTypeSetName();
 
 	//### Spawn Destroy **/
 
-	/** Spawns the grid's background cells */
+	/** Spawns the grid's cells (and cell background meshes) */
 	UFUNCTION(BlueprintCallable, CallInEditor)
 	void SpawnGrid();
 
+	/** Fill the grid with blocks. */
 	UFUNCTION(BlueprintCallable, CallInEditor)
 	void FillGridBlocks();
 
+	/** Destroy all blocks and cells in the grid. Does not destroy self. */
 	UFUNCTION(BlueprintCallable, CallInEditor)
 	void DestroyGrid();
 
+	/** Destroys all blocks in the grid. */
 	UFUNCTION(BlueprintCallable, CallInEditor)
 	void DestroyBlocks();
 
@@ -186,37 +201,47 @@ public:
 	UFUNCTION(BlueprintNativeEvent)
 	bool GetRandomBlockTypeNameForCellEx(const AMMPlayGridCell* Cell, FName& FoundBlockTypeName, const TArray<FName>& ExcludedBlockNames);
 
+	/** Add a new block of the given block type into the given cell. */
 	UFUNCTION(BlueprintCallable)
 	AMMBlock* AddBlockInCell(UPARAM(ref) AMMPlayGridCell* Cell, const FName& BlockType, const float OffsetAboveCell = 0.f, const bool bAllowUnsettle = true);
 
+	/** Add a new block of a random block type to the given cell. */
 	UFUNCTION(BlueprintCallable)
 	AMMBlock* AddRandomBlockInCell(UPARAM(ref) AMMPlayGridCell* Cell, const float OffsetAboveCell = 0.f, const bool bAllowUnsettle = true, const bool bPreventMatches = false);
 
+	/** Add a new block of a random block type to the given cell. Allows optional list of ExcludedBlockNames to use to filter the random block type generated */
 	UFUNCTION(BlueprintCallable)
-	AMMBlock* AddRandomBlockInCellEx(UPARAM(ref) AMMPlayGridCell* Cell, const TArray<FName>& ExcludedBlockNames, const float OffsetAboveCell = 0.f, const bool bAllowUnsettle = true, const bool bPreventMatches = false);
+	virtual AMMBlock* AddRandomBlockInCellEx(UPARAM(ref) AMMPlayGridCell* Cell, const TArray<FName>& ExcludedBlockNames, const float OffsetAboveCell = 0.f, const bool bAllowUnsettle = true, const bool bPreventMatches = false);
 
-	/** Drop block from above grid to fall into given cell */
+	/** Drop a random block from above grid, to fall into given cell */
 	UFUNCTION(BlueprintCallable)
 	AMMBlock* DropRandomBlockInColumn(UPARAM(ref) AMMPlayGridCell* Cell, const bool bPreventMatches = false);
 
+	/** Drop a random block from above grid, to fall into given cell. Allows optional ExcludedBlockNames to use to filter the random block type generated. */
 	UFUNCTION(BlueprintCallable)
 	AMMBlock* DropRandomBlockInColumnEx(UPARAM(ref) AMMPlayGridCell* Cell, const TArray<FName>& ExcludedBlockNames, const bool bPreventMatches = false);
 
+	/** Called when the given cell has become unoccupied. */
 	void CellBecameOpen(AMMPlayGridCell* Cell);
 
 	//### Get Cells & Blocks **/
 
+	/** Get cell at given grid coordinates. */
 	UFUNCTION(BlueprintPure)
 	AMMPlayGridCell* GetCell(const FIntPoint& Coords);
 
+	/** Get the cell at the top of the column. This is the top cell in the grid. i.e. it does not include blocks that are falling into 
+	 * the grid but are not yet in any grid cell. */
 	UFUNCTION(BlueprintPure)
 	AMMPlayGridCell* GetTopCell(const int32 Column);
 
+	/** Get the block at the given grid coordinates. */
 	UFUNCTION(BlueprintPure)
 	AMMBlock* GetBlock(const FIntPoint& Coords);
 
 	//## Grid & Cell Locations **/
 
+	/** Translates grid coordinates to world coordinates */
 	UFUNCTION(BlueprintPure)
 	FVector GridCoordsToWorldLocation(const FIntPoint& GridCoords);
 
@@ -224,6 +249,7 @@ public:
 	UFUNCTION(BlueprintPure)
 	FVector GridCoordsToLocalLocation(const FIntPoint& GridCoords);
 
+	/** Translates grid coordinates to world coordinates. Float coordinates allow specifying a location between grid cells. */
 	UFUNCTION(BlueprintPure)
 	FVector GridFloatCoordsToWorldLocation(const FVector2D& GridCoords);
 
@@ -297,10 +323,11 @@ public:
 
 	//### Misc.
 
+	/** Play all the sounds in the sound queue */
 	UFUNCTION(BlueprintCallable)
 	void PlaySounds(const TArray<USoundBase*> Sounds);
 
-	/** Returns DummyRoot subobject **/
+	/** Returns Root scene subobject **/
 	FORCEINLINE class USceneComponent* GetSceneRoot() const { return SceneRoot; }
 	/** Returns ScoreText subobject **/
 	FORCEINLINE class UTextRenderComponent* GetScoreText() const { return ScoreText; }
@@ -312,6 +339,7 @@ protected:
 	virtual void BeginPlay() override;
 	// End AActor interface
 
+	/** Sets up the BlocksFallingIntoGrid map based on grid size. */
 	void InitBlocksFallingIntoGrid();
 
 };

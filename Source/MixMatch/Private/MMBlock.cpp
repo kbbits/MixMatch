@@ -11,6 +11,7 @@
 #include "Engine/StaticMesh.h"
 #include "Kismet/GameplayStatics.h"
 
+
 AMMBlock::AMMBlock()
 {
 	// Structure to hold one-time initialization
@@ -127,7 +128,6 @@ bool AMMBlock::MatchTick_Implementation(float DeltaSeconds)
 	}
 	else {
 		UE_LOG(LogMMGame, Warning, TEXT("MMBlock::MatchTick - Called match tick with no current match."));
-		//MatchFinished(UBlockMatch());
 	}
 	return true;
 }
@@ -136,7 +136,6 @@ bool AMMBlock::MatchTick_Implementation(float DeltaSeconds)
 bool AMMBlock::SettleTick_Implementation(float DeltaSeconds)
 {
 	// Do settling movement
-	//bool bDoResettle = true;
 	float TargetDistance = DistanceToCell();
 	if (bMoveSuccessful) 
 	{
@@ -147,76 +146,57 @@ bool AMMBlock::SettleTick_Implementation(float DeltaSeconds)
 			// Check if block is low enough to no longer be "falling into grid"
 			if (GetRelativeLocation().Z <= (TopCell->GetBlockLocalLocation().Z + FMath::Max(Grid()->NewBlockDropInHeight, 10.f))) 
 			{
-				//bool bLowestFalling = true;
-				//if (SettleToGridCell) {
-				//	for (AMMBlock* FallingBlock : Grid()->BlocksFallingIntoGrid[TopCell->X].Blocks)
-				//	{
-				//		if (FallingBlock != this && FallingBlock->GetRelativeLocation().Z < GetRelativeLocation().Z)
-				//		{
-				//			bLowestFalling = false;
-				//			break;
-				//		}
-				//	}
-				//}
-				//if (bLowestFalling) 
-				//{
-					if (SettleToGridCell) {
-						ChangeOwningGridCell(SettleToGridCell);
-					}
-					bFallingIntoGrid = false;
-					Grid()->BlocksFallingIntoGrid[GetCoords().X].Blocks.RemoveSingle(this);
-				//}
-				//else {
-				//	bDoResettle = false;
-				//	BlockSettleFails++;
-				//}
+				// If we are low enough try to occupy our cell if we aren't already. (should be the top cell of the column)
+				if (SettleToGridCell) {
+					ChangeOwningGridCell(SettleToGridCell);
+				}
+				bFallingIntoGrid = false;
+				Grid()->BlocksFallingIntoGrid[GetCoords().X].Blocks.RemoveSingle(this);
 			}
 		}
-		//if (bDoResettle)
-		//{
-			// Check if we're done settling/moving
-			if (TargetDistance <= 1.f)
+		// Check if we're done settling/moving
+		if (TargetDistance <= 1.f)
+		{
+			// Re-check our settle location
+			AMMPlayGridCell* SettleCell = FindSettleCell();
+			if (SettleCell != nullptr && SettleCell != OwningGridCell)
 			{
-				// Re-check our settle location
-				AMMPlayGridCell* SettleCell = FindSettleCell();
-				if (SettleCell != nullptr && SettleCell != OwningGridCell)
-				{
-					ChangeOwningGridCell(SettleCell);
-					TargetDistance = DistanceToCell();
-					StartMoveDistance += TargetDistance;
-				}
+				ChangeOwningGridCell(SettleCell);
+				TargetDistance = DistanceToCell();
+				StartMoveDistance += TargetDistance;
 			}
-			// If we are still near our settle target, finsh settle movement
-			if (TargetDistance <= 1.f)
-			{
-				SetActorRelativeLocation(Cell()->GetBlockLocalLocation());
-				if (SettleToGridCell) {
-					if (ChangeOwningGridCell(SettleToGridCell)) {
-						SettleFinished();
-					}
-					else {
-						BlockSettleFails++;
-					}
-				}
-				else {
+		}
+		// If we are still near our settle target, finsh settle movement
+		if (TargetDistance <= 1.f)
+		{
+			SetActorRelativeLocation(Cell()->GetBlockLocalLocation());
+			if (SettleToGridCell) {
+				if (ChangeOwningGridCell(SettleToGridCell)) {
 					SettleFinished();
 				}
-			}
-			else
-			{
-				float MoveSpeed = 100.f;
-				AMMGameMode* GameMode = Cast<AMMGameMode>(UGameplayStatics::GetGameMode(this));
-				if (GameMode) {
-					MoveSpeed = GameMode->GetBlockMoveSpeed();
+				else {
+					BlockSettleFails++;
 				}
-				if (IsValid(MoveCurve)) {
-					MoveSpeed = MoveSpeed * MoveCurve->GetFloatValue(PercentMoveComplete());
-				}
-				FVector DirVector = Cell()->GetBlockLocalLocation() - GetRelativeLocation();
-				DirVector.Normalize(.002);
-				SetActorRelativeLocation(GetRelativeLocation() + (FMath::Min(MoveSpeed * DeltaSeconds, TargetDistance) * DirVector));
 			}
-		//}
+			else {
+				SettleFinished();
+			}
+		}
+		else
+		{
+			float MoveSpeed = 100.f;
+			AMMGameMode* GameMode = Cast<AMMGameMode>(UGameplayStatics::GetGameMode(this));
+			if (GameMode) {
+				MoveSpeed = GameMode->GetBlockMoveSpeed();
+			}
+			if (IsValid(MoveCurve)) {
+				MoveSpeed = MoveSpeed * MoveCurve->GetFloatValue(PercentMoveComplete());
+			}
+			FVector DirVector = Cell()->GetBlockLocalLocation() - GetRelativeLocation();
+			DirVector.Normalize(.002);
+			SetActorRelativeLocation(GetRelativeLocation() + (FMath::Min(MoveSpeed * DeltaSeconds, TargetDistance) * DirVector));
+		}
+		// Sanity check. Shouldn't be needed....
 		if (BlockSettleFails >= 100)
 		{
 			UE_LOG(LogMMGame, Error, TEXT("MMBlock::SettleTick - Block %s at %s failed to settle after %d tries"), *GetName(), *Cell()->GetCoords().ToString(), BlockSettleFails);
@@ -271,6 +251,12 @@ AMMPlayGridCell* AMMBlock::Cell()
 		return OwningGridCell;
 	}
 	return nullptr;
+}
+
+
+bool AMMBlock::HasCategory(const FName& CategoryName)
+{
+	return GetBlockType().BlockCategories.Contains(CategoryName);
 }
 
 
@@ -429,6 +415,15 @@ void AMMBlock::DestroyBlock()
 }
 
 
+TArray<FGoodsQuantity> AMMBlock::GetBaseMatchGoods_Implementation(const UGoodsDropper* GoodsDropper)
+{
+	// const_cast because goods dropper must be passed as const in order to appear as input pin. GoodsDropper is not originally declared const.
+	// UPARAM(ref) does not work since UObjects must be passed as pointers.
+	UGoodsDropper* Dropper = const_cast<UGoodsDropper*>(GoodsDropper);
+	return Dropper->EvaluateGoodsDropSet(GetBlockType().MatchDropGoods);
+}
+
+
 TArray<FGoodsQuantity> AMMBlock::GetMatchGoods_Implementation(const UGoodsDropper* GoodsDropper, const UBlockMatch* Match)
 {
 	// const_cast because goods dropper must be passed as const in order to appear as input pin. GoodsDropper is not originally declared const.
@@ -436,11 +431,11 @@ TArray<FGoodsQuantity> AMMBlock::GetMatchGoods_Implementation(const UGoodsDroppe
 	UGoodsDropper* Dropper = const_cast<UGoodsDropper*>(GoodsDropper);
 	int32 BonusMatchSize = Match->Blocks.Num() - Grid()->GetMinimumMatchSize();
 	if (BonusMatchSize == 0 || GetBlockType().BonusMatchGoodsMultiplier == 0.f) {
-		return Dropper->EvaluateGoodsDropSet(GetBlockType().MatchDropGoods);
+		return GetBaseMatchGoods(Dropper);
 	}
 	else {
 		return UGoodsFunctionLibrary::MultiplyGoodsQuantities(
-			Dropper->EvaluateGoodsDropSet(GetBlockType().MatchDropGoods),
+			GetBaseMatchGoods(Dropper),
 			(BonusMatchSize * GetBlockType().BonusMatchGoodsMultiplier) + 1.f
 		);
 	}

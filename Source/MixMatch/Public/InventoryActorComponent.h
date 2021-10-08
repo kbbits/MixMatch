@@ -12,8 +12,11 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnInventoryChanged, const TArray
 
 /*
 * Manages an actor's inventory of goods. 
+* NOTE: Replication currently disabled.
 * Replication of inventory content is managed by all changes going through server. Each of those changes is 
 * replicated to owning client via RPCs called from the ServerXxxx functions.
+* 
+* TODO: Rework this component to eliminate redundant logic only needed for replication.
 */
 UCLASS(Blueprintable, ClassGroup=(Custom), meta=(BlueprintSpawnableComponent) )
 class MIXMATCH_API UInventoryActorComponent : public UActorComponent
@@ -28,25 +31,31 @@ public:
 	UPROPERTY(BlueprintAssignable, Category = "EventDispatchers")
 	FOnInventoryChanged OnInventoryChanged;
 
-protected:
+	/** The actual list of current inventory. Should not be changed directly but by calling the appropriate functions. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, meta = (TitleProperty = "Name"))
 	TArray<FGoodsQuantity> Inventory;
 
+protected:
+
+	/** The snapshot of goods quantity deltas since the last time the snapshot was cleared. */
 	UPROPERTY(BlueprintReadOnly, meta = (TitleProperty = "Name"))
 	TArray<FGoodsQuantity> SnapshotInventory;
 
-	// Any goods name that matches one of these strings will be filtered out of saveable goods in GeSaveableGoods()
-	// TODO: This should probably be moved to a single location, e.g. GameMode.
+	/** Any goods name that matches one of these strings will be filtered out of saveable goods in GetSaveableGoods()
+	 * TODO: This should probably be moved to a single location, e.g. GameMode. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	TArray<FString> UnsaveableGoodsFilters;
 
 protected:
+
 	// Called when the game starts
 	virtual void BeginPlay() override;
 
+	// Used in replication
 	bool ShouldUpdateClient();
 
 public:	
+
 	// Called every frame
 	virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
 
@@ -56,6 +65,7 @@ public:
 	// Note: actual changes to inventory are made by replicated functions that this calls. (ServerAddSubtractGoods, ClientUpdateInventoryQuantity).
 	UFUNCTION(BlueprintCallable)
 	bool AddSubtractGoods(const FGoodsQuantity& GoodsDelta, const bool bNegateGoodsQuantities, float& CurrentQuantity, const bool bAddToSnapshot = true);
+	bool AddSubtractGoods(const FGoodsQuantity& GoodsDelta, const bool bNegateGoodsQuantities, const bool bAddToSnapshot = true);
 
 	// [Server]
 	// Called from AddSubtractGoods()
@@ -87,7 +97,6 @@ public:
 	UFUNCTION(Client, Reliable, WithValidation)
 	void ClientSetInventory(const TArray<FGoodsQuantity>& NewGoods, const TArray<FGoodsQuantity>& NewSnapshotGoods);
 
-
 	// [Client]
 	// Called from ServerAddSubtractGoods()
 	// Updates client side quantity - sets quantity to new quantity. Snapshot delta is added to existing snapshot quantities.
@@ -101,9 +110,15 @@ public:
 	void ClientUpdateInventoryQuantities(const TArray<FGoodsQuantity>& NewQuantities, const TArray<FGoodsQuantity>& SnapshotDeltas);
 
 	// [Any]
-	// Get the current quantity of the given goods.
+	// Get the current quantity of the given goods in the inventory.
 	UFUNCTION(BlueprintPure)
 	float GetGoodsCount(const FName GoodsName);
+
+	// [Any]
+	// Convenience method to get current inventory quantity of all goods types in the GoodsTypesToCount.
+	// Note: The quantity in submitted GoodsTypesToCount is ignored.
+	UFUNCTION(BlueprintPure)
+	const TArray<FGoodsQuantity> GetGoodsCounts(const TArray<FGoodsQuantity>& GoodsTypesToCount);
 
 	// [Any]
 	// Get the current quantities of all goods in inventory.
@@ -116,12 +131,12 @@ public:
 	void GetSaveableGoods(TArray<FGoodsQuantity>& AllSaveableGoods);
 
 	// [Any]
-	// Check if the inventory contains the given goods
+	// Check if the inventory contains the given goods and if so, what is the current quantity.
 	UFUNCTION(BlueprintPure)
 	bool HasGoods(const FGoodsQuantity Goods, float& CurrrentQuantity);
 
 	// [Any]
-	// Check that the inventory contains all of the given goods
+	// Check that the inventory contains all of the given goods and provides their current quantities.
 	UFUNCTION(BlueprintPure)
 	bool HasAllGoods(const TArray<FGoodsQuantity> Goods, TArray<FGoodsQuantity>& CurrrentQuantities);
 

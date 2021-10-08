@@ -69,6 +69,12 @@ public:
 		return 0.f;
 	}
 
+	// Convenience to allow getting counts using GoodsQuantities as a filter of types to count.
+	// Returns the quantities of goods in GoodsToCount that match the goods types in GoodsTypesToCount.
+	// Note: the quantities in GoodsTypesToCount are ignored.
+	UFUNCTION(BlueprintPure, Category = "Goods")
+	static TArray<FGoodsQuantity> CountsInGoodsQuantities(const TArray<FGoodsQuantity>& GoodsTypesToCount, const TArray<FGoodsQuantity>& GoodsToCount);
+	
 
 	// Returns the quantity of goods of the given name contained in the supplied goods quantity set
 	UFUNCTION(BlueprintPure, Category = "Goods")

@@ -15,15 +15,19 @@ public:
 
 public:
 
+	/** All of the blocks in the match. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame)
 	TArray<class AMMBlock*> Blocks;
 	
+	/** The grid orientation of this match. */
 	UPROPERTY(BluePrintReadOnly)
 	EMMOrientation Orientation = EMMOrientation::Unknown;
 
+	/** The coordinates of the block in this match closest to coords(0,0) (bottom left) */
 	UPROPERTY(BlueprintReadOnly)
 	FIntPoint StartCoords = FIntPoint::NoneValue;
 
+	/** The coordinates of the block in this match closest to coords(SizeX-1, SizeY-1) (top right) */
 	UPROPERTY(BlueprintReadOnly)
 	FIntPoint EndCoords = FIntPoint::NoneValue;
 
@@ -35,9 +39,11 @@ public:
 	UPROPERTY(BlueprintReadOnly)
 	TArray<FGoodsQuantity> TotalGoods;
 
+	/** Has this match been sorted? */
 	UPROPERTY(BlueprintReadOnly)
 	bool bSorted = false;
 
+	/** Is this match finished resolving/processing? */
 	UPROPERTY(BlueprintReadOnly)
 	bool bMatchFinished = false;
 
@@ -45,6 +51,7 @@ public:
 
 public:
 
+	/** Sort the blocks within the match from bottom left coords to top right coords. Also sets match's StartCoords and EndCoords. */
 	UFUNCTION(BlueprintCallable)
 	void Sort(const bool bForceSort = false);
 
@@ -52,9 +59,10 @@ public:
 	// Note: This does not change the bMatchFinished flag.
 	UFUNCTION(BlueprintCallable)
 	void Reset();
-
-	// Returns (-1, -1, -1) if location could not be determined. i.e. the match contains no blocks.
-	UFUNCTION(BlueprintCallable)
+	
+	/** Gets the location of the match in the world. i.e. the center of the group of blocks in the match. 
+	 * Returns (-1, -1, -1) if location could not be determined. i.e. the match contains no blocks. */
+	UFUNCTION(BlueprintPure)
 	FVector GetWorldLocation();
 };
 

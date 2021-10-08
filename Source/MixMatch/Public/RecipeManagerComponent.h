@@ -25,33 +25,40 @@ public:
 	UPROPERTY(BlueprintAssignable, Category = "EventDispatchers")
 	FOnRecipeLevelChanged OnRecipeLevelChanged;
 
+	/** Recipe data */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
 	UDataTable* CraftingRecipesTable;
 
 
 protected:
 	
+	/** Cache map of recipe data loaded from data source. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, meta = (TitleProperty = "Name"))
 	TMap<FName, FCraftingRecipe> AllRecipeData;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	/** The current level of each recipe. */
+	UPROPERTY(EditAnywhere)
 	TMap<FName, int32> RecipeLevels;
 
 	// Map of goods name to recipe name of recipe producing that goods type.
-	UPROPERTY(EditAnywhere, BlueprintReadOnly)
+	UPROPERTY()
 	TMap<FName, FName> GoodsToRecipeMap;
 
 public:
 
+	/** Get recipe data for given recipe name. */
 	UFUNCTION(BlueprintPure)
 	FCraftingRecipe GetRecipe(const FName& RecipeName, bool& bFound);
 
+	/** Get the recipe that produces the given goods type. */
 	UFUNCTION(BlueprintCallable)
 	FCraftingRecipe GetRecipeForGoodsName(const FName& GoodsName, bool& bFound);
 
+	/** Get the current level of the recipe */
 	UFUNCTION(BlueprintPure)
 	int32 GetRecipeLevel(const FName& RecipeName);
 
+	/** Set the current level of the recipe. */
 	UFUNCTION(BlueprintCallable)
 	void SetRecipeLevel(const FName& RecipeName, const int32 NewLevel);
 
@@ -60,7 +67,7 @@ public:
 	UFUNCTION(BlueprintPure)
 	bool GetBaseIngredientsForRecipe(const FName& RecipeName, TArray<FGoodsQuantity>& BaseGoods);
 
-	/** Gets the output goods for crafting the given recipe once. 
+	/** Gets the output goods for crafting the given recipe name once. 
 	 *  Returns true if the recipe was found, false otherwise. */
 	UFUNCTION(BlueprintPure)
 	bool GetGoodsForRecipeName(const FName& RecipeName, TArray<FGoodsQuantity>& OutputGoods, const float QuantityScale = -1.f, const bool bExcludeBonusGoods = false);
@@ -79,6 +86,7 @@ protected:
 	// Called when the game starts
 	virtual void BeginPlay() override;
 
+	/** Set up our cache of recipe data */
 	void InitCraftingRecipes(bool bForceRefresh = false);
 
 };

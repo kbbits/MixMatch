@@ -100,6 +100,13 @@ bool UInventoryActorComponent::AddSubtractGoods(const FGoodsQuantity& GoodsDelta
 }
 
 
+bool UInventoryActorComponent::AddSubtractGoods(const FGoodsQuantity& GoodsDelta, const bool bNegateGoodsQuantities, const bool bAddToSnapshot)
+{
+	float CurrentQuantity = 0.f;
+	return AddSubtractGoods(GoodsDelta, bNegateGoodsQuantities, CurrentQuantity, bAddToSnapshot);
+}
+
+
 void UInventoryActorComponent::ServerAddSubtractGoods_Implementation(const FGoodsQuantity& GoodsDelta, const bool bNegateGoodsQuantities, const bool bAddToSnapshot)
 {
 	if (GoodsDelta.Quantity == 0.0f) { return; }
@@ -497,6 +504,17 @@ float UInventoryActorComponent::GetGoodsCount(const FName GoodsName)
 	{
 		return Inventory[Index].Quantity;
 	}
+}
+
+
+const TArray<FGoodsQuantity> UInventoryActorComponent::GetGoodsCounts(const TArray<FGoodsQuantity>& GoodsTypesToCount)
+{
+	TArray<FGoodsQuantity> InvCounts;
+	InvCounts.Reserve(GoodsTypesToCount.Num());
+	for (FGoodsQuantity GQ : GoodsTypesToCount)	{
+		InvCounts.Add(FGoodsQuantity(GQ.Name, GetGoodsCount(GQ.Name)));
+	}
+	return InvCounts;
 }
 
 

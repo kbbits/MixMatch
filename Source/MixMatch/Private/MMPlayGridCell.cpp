@@ -61,12 +61,10 @@ void AMMPlayGridCell::OnFingerPressedCell(ETouchIndex::Type FingerIndex, UPrimit
 
 void AMMPlayGridCell::Highlight(bool bOn)
 {
-	if (bOn)
-	{
+	if (bOn) {
 		CellMesh->SetMaterial(0, AltMaterial);
 	}
-	else
-	{
+	else {
 		CellMesh->SetMaterial(0, BaseMaterial);
 	}
 }
@@ -82,7 +80,6 @@ FVector AMMPlayGridCell::GetBlockWorldLocation()
 {
 	if (OwningGrid) {
 		return OwningGrid->GridCoordsToWorldLocation(GetCoords());
-		//return GetActorLocation() + FVector(0.f, OwningGrid->CellBackgroundOffset, 0.f);
 	}
 	else {
 		return FVector::ZeroVector;

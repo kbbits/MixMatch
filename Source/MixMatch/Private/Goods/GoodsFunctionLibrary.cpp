@@ -94,3 +94,14 @@ TArray<FGoodsQuantity> UGoodsFunctionLibrary::GoodsQuantitiesFromRanges(FRandomS
 	return Goods;
 }
 
+
+TArray<FGoodsQuantity> UGoodsFunctionLibrary::CountsInGoodsQuantities(const TArray<FGoodsQuantity>& GoodsTypesToCount, const TArray<FGoodsQuantity>& GoodsToCount)
+{
+	TArray<FGoodsQuantity> GoodsCounts;
+	bool bFound;
+	for (FGoodsQuantity GQ : GoodsTypesToCount)
+	{
+		GoodsCounts.Add(FGoodsQuantity(GQ.Name, CountInGoodsQuantityArray(GQ.Name, GoodsToCount, bFound)));
+	}
+	return GoodsCounts;
+}

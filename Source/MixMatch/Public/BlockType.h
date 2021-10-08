@@ -6,6 +6,11 @@
 #include "MatchAction.h"
 #include "BlockType.generated.h"
 
+struct BlockCategory
+{
+	// The predefined name of the Goods block category.
+	static const FName Goods;
+};
 
 /*
 * Represents a type of Block that can be spawned into the play grid.
@@ -28,14 +33,16 @@ public:
 
 	// Other match codes that this block will also match to
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame)
-		TArray<FName> OtherMatchCodes;
+	TArray<FName> OtherMatchCodes;
 
 	// Categories (or groups) that this block type belongs to.
 	// A block will compare it's MatchCode and OtherMatchCodes to a block's categories when determining matches.
 	// Note that two blocks in the same category will not match unless one or both of those blocks include
 	// that category in their MatchCode or OtherMatchCodes.
+	// 
+	// Blocks that represent goods should have the GoodsCategory::Goods category added to them.
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame)
-		TArray<FName> BlockCategories;
+	TArray<FName> BlockCategories;
 
 	// If this block is already in a match group, look back at the blocks in the match group before this one
 	// until we find one not marked with bMatchNextToPreviousInMatchGroup and use that one to compare against
@@ -62,7 +69,12 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame)
 	FLinearColor AltColor;
-		
+	
+	// The base health for this block. Used by some special block types.
+	// Not used for most blocks.
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame)
+	float BaseHealth = 1.f;
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame)
 	bool bImmobile;
 
@@ -93,7 +105,7 @@ public:
 	// Total goods from a match are multiplied by this factor for each block.
 	// overall total goods = base total goods * (sum of all OverallMatchPointsMultiplier values for blocks where OverallMatchPointsMultiplier != 1.0)
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame)
-		float OverallMatchGoodsMultiplier = 1.f;
+	float OverallMatchGoodsMultiplier = 1.f;
 
 	// Actions to trigger based on match size.
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame)
@@ -109,6 +121,7 @@ public:
 
 	inline bool operator==(const FName& MatchCodeOther) const
 	{
+		if (MatchCode == NAME_None || MatchCodeOther == NAME_None) return false;
 		if (bPreventSelfMatch && MatchCode == MatchCodeOther) return false;
 		const FName Any = FName(TEXT("Any"));
 		if (MatchCode == Any || MatchCodeOther == Any) return true;
@@ -121,6 +134,7 @@ public:
 
 	inline bool operator==(const FName& MatchCodeOther)
 	{
+		if (MatchCode == NAME_None || MatchCodeOther == NAME_None) return false;
 		if (bPreventSelfMatch && MatchCode == MatchCodeOther) return false;
 		const FName Any = FName(TEXT("Any"));
 		if (MatchCode == Any || MatchCodeOther == Any) return true;
@@ -133,6 +147,7 @@ public:
 
 	inline bool operator==(FName& MatchCodeOther)
 	{
+		if (MatchCode == NAME_None || MatchCodeOther == NAME_None) return false;
 		if (bPreventSelfMatch && MatchCode == MatchCodeOther) return false;
 		const FName Any = FName(TEXT("Any"));
 		if (MatchCode == Any || MatchCodeOther == Any) return true;
