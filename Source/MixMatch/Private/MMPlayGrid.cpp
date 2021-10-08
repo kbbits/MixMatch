@@ -572,7 +572,7 @@ FVector AMMPlayGrid::GridCoordsToWorldLocation(const FIntPoint& GridCoords)
 	float BlockSpacingY = BlockSize.Z + CellBackgroundMargin; // the grid's Y axis is actually world Z;
 	float XOffset = (GridCoords.X * BlockSpacingX) + (BlockSpacingX / 2.f);
 	float YOffset = (GridCoords.Y * BlockSpacingY) + (BlockSpacingY / 2.f);
-	return GetActorTransform().InverseTransformPosition(FVector(XOffset, 0.f, YOffset)); 
+	return GetActorTransform().TransformPosition(FVector(XOffset, 0.f, YOffset)); 
 }
 
 FVector AMMPlayGrid::GridCoordsToLocalLocation(const FIntPoint& GridCoords)
@@ -866,8 +866,8 @@ int32 AMMPlayGrid::MatchVertical(UPARAM(ref) AMMBlock* StartBlock, UBlockMatch**
 				}
 			}
 			(*MatchPtr)->Orientation = EMMOrientation::Vertical;
-			if (bMarkBlocks) { 
-				(*MatchPtr)->Sort(); 
+			if (bMarkBlocks) {
+				(*MatchPtr)->Sort();
 			}
 		}
 		else
@@ -892,16 +892,16 @@ int32 AMMPlayGrid::MatchDirection(AMMBlock* StartBlock, const EMMDirection Direc
 		//	UE_LOG(LogMMGame, Log, TEXT("  MMPlayGrid::MatchDirection - Matches: %d direction coords %s"), (*MatchPtr)->Blocks.Num(), *UMMMath::DirectionToOffset(Direction).ToString());
 		//}
 		//UE_LOG(LogMMGame, Log, TEXT("  MMPlayGrid::MatchDirection - Start coords: %s"), *(StartBlock->Cell()->GetCoords()).ToString());
-		FIntPoint NeighborCoords = StartBlock->Cell()->GetCoords() + UMMMath::DirectionToOffset(Direction);
-		//UE_LOG(LogMMGame, Log, TEXT("  MMPlayGrid::MatchDirection - Neighbor coords: %s"), *NeighborCoords.ToString());
+		FIntPoint NeighborCoords = StartBlock->GetCoords() + UMMMath::DirectionToOffset(Direction);
 		AMMPlayGridCell* NeighborCell = GetCell(NeighborCoords);
+		//UE_LOG(LogMMGame, Log, TEXT("  MMPlayGrid::MatchDirection - Neighbor coords: %s"), *NeighborCoords.ToString());
 		//if (NeighborCell) {
 		//	UE_LOG(LogMMGame, Log, TEXT("  MMPlayGrid::MatchDirection - Neighbor cell %s coords: %s"), *NeighborCell->GetName(), *NeighborCoords.ToString());
 		//}
 		if (NeighborCell && IsValid(NeighborCell->CurrentBlock))
 		{
-			if ( (UMMMath::DirectionIsHorizontal(Direction) && NeighborCell->CurrentBlock->bMatchedHorizontal) ||
-				 (UMMMath::DirectionIsVertical(Direction) && NeighborCell->CurrentBlock->bMatchedVertical))
+			if ((UMMMath::DirectionIsHorizontal(Direction) && NeighborCell->CurrentBlock->bMatchedHorizontal) ||
+				(UMMMath::DirectionIsVertical(Direction) && NeighborCell->CurrentBlock->bMatchedVertical))
 			{
 				if (MatchPtr != nullptr && *MatchPtr != nullptr) {
 					return (*MatchPtr)->Blocks.Num();
@@ -910,13 +910,49 @@ int32 AMMPlayGrid::MatchDirection(AMMBlock* StartBlock, const EMMDirection Direc
 					return 0;
 				}
 			}
-			if (StartBlock->Matches(NeighborCell->CurrentBlock)) // && !Matches.Contains(NeighborCell->CurrentBlock))
+			FName AnyMatch = FName(TEXT("Any"));
+			bool bAlreadyMatched = false;
+			// Handle bMatchNextToPreviousInMatchGroup. If we already have some matched blocks, compare our neighbor to the previous 
+			// non-bMatchNextToPreviousInMatchGroup block found in the match instead of thls start block.
+			if (StartBlock->GetBlockType().bMatchNextToPreviousInMatchGroup && (*MatchPtr != nullptr) && (*MatchPtr)->Blocks.Num() > 1)
+			{
+				// find the last non-any block in match
+				AMMBlock* LastMatchingBlock = nullptr;
+				for (int32 i = (*MatchPtr)->Blocks.Num() - 1; i >= 0; i--)
+				{
+					LastMatchingBlock = (*MatchPtr)->Blocks[i];
+					if (!LastMatchingBlock->GetBlockType().bMatchNextToPreviousInMatchGroup) {
+						break;
+					}
+					LastMatchingBlock = nullptr;
+				}
+				if (LastMatchingBlock != nullptr)
+				{
+					// Check those blocks for match, because if they don't match then reset the match
+					if (LastMatchingBlock->Matches(NeighborCell->CurrentBlock))	{
+						bAlreadyMatched = true;						
+					}
+					else {
+						// They didn't match.
+						// If the match is already large enough, stop matching and return as normal
+						if ((*MatchPtr)->Blocks.Num() >= GetMinimumMatchSize()) {
+							return (*MatchPtr)->Blocks.Num();
+						}
+						// Otherwise, clear the match
+						(*MatchPtr)->Reset();
+					}					
+				}
+				// If we didn't find a last matching block, then all the current matching blocks are bMatchNextToPreviousInMatchGroup=true.
+				// So, just do the normal match below.
+			}
+			if (bAlreadyMatched || StartBlock->Matches(NeighborCell->CurrentBlock))
 			{
 				UBlockMatch* Match;
 				if (MatchPtr != nullptr && *MatchPtr != nullptr) {
 					Match = *MatchPtr;
 				}
-				else {
+				else 
+				{
 					Match = NewObject<UBlockMatch>(this);
 					Match->Blocks.Empty();
 					(*MatchPtr) = Match;
@@ -986,9 +1022,11 @@ bool AMMPlayGrid::ResolveMatches()
 		FGoodsQuantitySet MatchGoods;
 		GameMode->GetGoodsForMatch(CurMatch, MatchGoods);
 		if (MatchGoods.Goods.Num() > 0) {
+			CurMatch->TotalGoods = MatchGoods.Goods;
 			TotalGoods.Append(MatchGoods.Goods);
 		}
 		TotalScoreToAdd += GameMode->GetScoreForMatch(CurMatch);
+		CurMatch->TotalScore = TotalScoreToAdd;
 		for (AMMBlock* CurBlock : CurMatch->Blocks)
 		{
 			if (CurBlock->Cell() && CurBlock->Cell()->CurrentBlock == CurBlock) {
@@ -1005,6 +1043,8 @@ bool AMMPlayGrid::ResolveMatches()
 		AMMPlayerController* PC = Cast<AMMPlayerController>(UGameplayStatics::GetPlayerController(GetWorld(), 0));
 		PC->GoodsInventory->AddSubtractGoodsArray(TotalGoods, false, true);
 	}
+	// Call the notification delegate
+	OnMatchAwards.Broadcast(BlockMatches);
 	return true;
 }
 

@@ -1,6 +1,7 @@
 
 #include "BlockMatch.h"
 #include "..\MixMatch.h"
+#include "MMPlayGrid.h"
 #include "MMBlock.h"
 
 /*
@@ -60,4 +61,26 @@ void UBlockMatch::Sort(const bool bForceSort)
 		}
 	}
 	bSorted = true;
+}
+
+
+void UBlockMatch::Reset()
+{
+	Blocks.Empty();
+	StartCoords = FIntPoint::NoneValue;
+	EndCoords = FIntPoint::NoneValue;
+	bSorted = false;
+	TotalScore = 0;
+	TotalGoods.Empty();
+	Orientation = EMMOrientation::Unknown;
+}
+
+
+FVector UBlockMatch::GetWorldLocation()
+{
+	if (Blocks.Num() == 0) return FVector(-1.f, -1.f, -1.f);
+	AMMPlayGrid* Grid = Blocks[0]->Grid();
+	if (Grid == nullptr) return FVector(-1.f, -1.f, -1.f);
+	Sort();
+	return Grid->GridFloatCoordsToWorldLocation(FVector2D((float)(StartCoords.X + EndCoords.X) / 2.f, (float)(StartCoords.Y + EndCoords.Y) / 2.f));
 }

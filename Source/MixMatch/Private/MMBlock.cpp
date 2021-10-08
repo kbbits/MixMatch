@@ -5,6 +5,7 @@
 #include "MMPlayGrid.h"
 #include "MMGameMode.h"
 #include "Goods/GoodsDropper.h"
+#include "Goods/GoodsFunctionLibrary.h"
 #include "UObject/ConstructorHelpers.h"
 #include "Components/StaticMeshComponent.h"
 #include "Engine/StaticMesh.h"
@@ -428,9 +429,21 @@ void AMMBlock::DestroyBlock()
 }
 
 
-TArray<FGoodsQuantity> AMMBlock::GetMatchGoods(UGoodsDropper* GoodsDropper)
+TArray<FGoodsQuantity> AMMBlock::GetMatchGoods_Implementation(const UGoodsDropper* GoodsDropper, const UBlockMatch* Match)
 {
-	return GoodsDropper->EvaluateGoodsDropSet(BlockType.MatchDropGoods);
+	// const_cast because goods dropper must be passed as const in order to appear as input pin. GoodsDropper is not originally declared const.
+	// UPARAM(ref) does not work since UObjects must be passed as pointers.
+	UGoodsDropper* Dropper = const_cast<UGoodsDropper*>(GoodsDropper);
+	int32 BonusMatchSize = Match->Blocks.Num() - Grid()->GetMinimumMatchSize();
+	if (BonusMatchSize == 0 || GetBlockType().BonusMatchGoodsMultiplier == 0.f) {
+		return Dropper->EvaluateGoodsDropSet(GetBlockType().MatchDropGoods);
+	}
+	else {
+		return UGoodsFunctionLibrary::MultiplyGoodsQuantities(
+			Dropper->EvaluateGoodsDropSet(GetBlockType().MatchDropGoods),
+			(BonusMatchSize * GetBlockType().BonusMatchGoodsMultiplier) + 1.f
+		);
+	}
 }
 
 

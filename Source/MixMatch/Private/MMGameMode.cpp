@@ -175,12 +175,17 @@ float AMMGameMode::GetBlockMoveSpeed()
 bool AMMGameMode::GetGoodsForMatch_Implementation(const UBlockMatch* Match, FGoodsQuantitySet& MatchGoods)
 {
 	check(Match);
+	MatchGoods.Goods.Empty();
+	// TotalGoods is set in MMPlayGrid::ResolveMatches
+	if (Match->TotalGoods.Num() > 0) {
+		MatchGoods.Goods.Append(Match->TotalGoods);
+		return true;
+	}
 	InitGoodsDropper();
 	if (!IsValid(GoodsDropper)) {
 		UE_LOG(LogMMGame, Error, TEXT("MMGameMode::GetGoodsForMatch - GoodsDropper is not valid"));
 		return false;
-	}
-	MatchGoods.Goods.Empty();
+	}	
 	int32 MatchSize = Match->Blocks.Num();
 	if (MatchSize == 0) {
 		return false;
@@ -191,77 +196,30 @@ bool AMMGameMode::GetGoodsForMatch_Implementation(const UBlockMatch* Match, FGoo
 	int32 BonusMatchSize = MatchSize - Match->Blocks[0]->Grid()->GetMinimumMatchSize();
 	float OverallMult = 0.f;
 	TArray<FGoodsQuantity> TempTotalGoods;
-	/*
-	// Create a map that tracks how many of each block type are in the match
-	TMap<FName, FBlockTypeQuantity> BlockTypeMap;
-	for (AMMBlock* Block : Match.Blocks)
-	{
-		FName BlockTypeName = Block->GetBlockType().Name;
-		if (BlockTypeMap.Contains(BlockTypeName)) {
-			BlockTypeMap[BlockTypeName].Quantity++;
-		}
-		else {
-			BlockTypeMap.Add(BlockTypeName, FBlockTypeQuantity(Block->GetBlockType(), 1));
-		}
-	}
-	// Iterate over the count of block types
-	for (const TPair<FName, FBlockTypeQuantity>& It : BlockTypeMap) 
-	{
-		// Get normal goods for a single block of this type.
-		TArray<FGoodsQuantity> NormalGoods = GoodsDropper->EvaluateGoodsDropSet(It.Value.BlockType.MatchDropGoods);
-		if (NormalGoods.Num() > 0)
-		{
-			if (BonusMatchSize > 0)
-			{
-				// Multiply the goods for this block type by (the quantity of this block type in the match + bonus multiplier based on size of match).
-				MatchGoods.Goods = UGoodsFunctionLibrary::AddGoodsQuantities(
-					MatchGoods.Goods,
-					UGoodsFunctionLibrary::MultiplyGoodsQuantities(
-						NormalGoods,
-						(float)It.Value.Quantity + (((float)It.Value.Quantity) * (BonusMatchSize * It.Value.BlockType.BonusMatchGoodsMultiplier))
-					)					
-				);
-			}
-			else {
-				// Multiply the goods for this block type by the quantity of this type in the match.
-				MatchGoods.Goods = UGoodsFunctionLibrary::AddGoodsQuantities(
-					MatchGoods.Goods,
-					UGoodsFunctionLibrary::MultiplyGoodsQuantities(
-						NormalGoods,
-						((float)It.Value.Quantity)
-					)
-				);
-			}
-		}
-	}
-	*/
+	
 	// Iterate over each block, getting dropped goods from each
 	for (AMMBlock* Block : Match->Blocks)
 	{
 		check(Block);
-		if (BonusMatchSize == 0 || Block->GetBlockType().BonusMatchGoodsMultiplier == 0.f) {
-			TempTotalGoods.Append(Block->GetMatchGoods(GoodsDropper));
-		}
-		else {
-			TempTotalGoods.Append(UGoodsFunctionLibrary::MultiplyGoodsQuantities(Block->GetMatchGoods(GoodsDropper), (BonusMatchSize * Block->GetBlockType().BonusMatchGoodsMultiplier) + 1.f));
-		}
+		TempTotalGoods.Append(Block->GetMatchGoods(GoodsDropper, Match));
 		if (Block->GetBlockType().OverallMatchGoodsMultiplier > 0.f && Block->GetBlockType().OverallMatchGoodsMultiplier != 1.f) {
 			OverallMult += Block->GetBlockType().OverallMatchGoodsMultiplier;
 		}
 	}
-	// After normal goods, including bonus goods, have been determined, apply the overall multipliers from each block type. (if any)
+	// After normal goods, including bonus goods, have been determined, apply the cumulative overall multiplier. (if any)
 	if (OverallMult > 0.f) {
 		MatchGoods.Goods.Append(
 			UGoodsFunctionLibrary::MultiplyGoodsQuantities(
 				// Use the AddGoodsQuantities function to consolidate all goods quantities to one total per goods type.}
 				UGoodsFunctionLibrary::AddGoodsQuantities(TArray<FGoodsQuantity>(), TempTotalGoods), 
-				OverallMult)
+				OverallMult
+			)
 		);
 	}
 	else {
 		// Use the AddGoodsQuantities function to consolidate all goods quantities to one total per goods type.}
 		MatchGoods.Goods.Append(UGoodsFunctionLibrary::AddGoodsQuantities(TArray<FGoodsQuantity>(), TempTotalGoods));
-	}		
+	}
 	return true;
 }
 

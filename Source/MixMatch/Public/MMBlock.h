@@ -172,7 +172,10 @@ public:
 	void DestroyBlock();
 
 	/** Get the goods dropped for a normal, minimum sized match. */
-	TArray<FGoodsQuantity> GetMatchGoods(UGoodsDropper* GoodsDropper);
+	UFUNCTION(BlueprintNativeEvent)
+	TArray<FGoodsQuantity> GetMatchGoods(const UGoodsDropper* GoodsDropper, const UBlockMatch* Match);
+	//TArray<FGoodsQuantity> GetMatchGoods_Native(UGoodsDropper* GoodsDropper, const UBlockMatch* Match);
+
 	
 	UFUNCTION(BlueprintNativeEvent)
 	void OnMove(const AMMPlayGridCell* ToCell);

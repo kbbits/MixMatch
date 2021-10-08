@@ -10,10 +10,10 @@
 #include "MMPlayerController.generated.h"
 
 
-// Event dispatcher for when CurrentGrid changes
+// Event dispatcher for when CurrentGrid changes to different grid
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnCurrentGridChanged, const AMMPlayGrid*, NewCurrentGrid);
 
-// Event dispatcher for when CurrentGrid changes
+// Event dispatcher for when a recipe is crafted
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnRecipeCrafted, const FCraftingRecipe&, CraftedRecipe, const int32, QuantityCrafted);
 
 
@@ -26,10 +26,11 @@ class AMMPlayerController : public APlayerController
 public:
 	AMMPlayerController();
 
-	// Delegate event when current grid has changed.
+	// Delegate event when current grid has changed to differnt grid
 	UPROPERTY(BlueprintAssignable, Category = "EventDispatchers")
 	FOnCurrentGridChanged OnCurrentGridChanged;
 
+	// Delegate event when a recipe is crafted
 	UPROPERTY(BlueprintAssignable, Category = "EventDispatchers")
 	FOnRecipeCrafted OnRecipeCrafted;
 

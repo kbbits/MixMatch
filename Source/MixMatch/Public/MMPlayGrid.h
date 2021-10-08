@@ -9,6 +9,8 @@
 #include "MMPlayGridCell.h"
 #include "MMPlayGrid.generated.h"
 
+// Event dispatcher for when grid gives award for matches
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnMatchAwards, const TArray<UBlockMatch*>&, Matches);
 
 /** Class used to spawn grid and manage score */
 UCLASS(minimalapi)
@@ -17,6 +19,10 @@ class AMMPlayGrid : public AActor
 	GENERATED_BODY()
 
 public:
+
+	// Delegate event when grid gives awards for matches.
+	UPROPERTY(BlueprintAssignable, Category = "EventDispatchers")
+	FOnMatchAwards OnMatchAwards;
 
 	UPROPERTY(VisibleDefaultsOnly, BlueprintReadOnly)
 	EMMGridState GridState;
@@ -126,7 +132,7 @@ private:
 	class UTextRenderComponent* ScoreText;
 
 	/** Inventory for this grid */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame, meta = (AllowPrivateAccess = "true"))
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, SaveGame, meta = (AllowPrivateAccess = "true"))
 	class UInventoryActorComponent* GoodsInventory;
 
 	/** StaticMesh component for the clickable blocks toggle control */
