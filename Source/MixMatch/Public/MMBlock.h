@@ -210,7 +210,7 @@ public:
 
 	/** Get the goods dropped for a "normal", minimum size, block match. */
 	UFUNCTION(BlueprintNativeEvent)
-	TArray<FGoodsQuantity> GetBaseMatchGoods(const UGoodsDropper* GoodsDropper);
+	TArray<FGoodsQuantity> GetBaseMatchGoods(const UGoodsDropper* GoodsDropper, const float QuantityScale = -1.f);
 
 	/** Get the goods dropped for the given match. */
 	UFUNCTION(BlueprintNativeEvent)

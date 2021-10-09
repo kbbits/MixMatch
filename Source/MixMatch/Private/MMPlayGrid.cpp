@@ -161,7 +161,7 @@ void AMMPlayGrid::BeginPlay()
 	Super::BeginPlay();
 	
 	SpawnGrid();
-	FillGridBlocks();
+	//FillGridBlocks();
 }
 
 

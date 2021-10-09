@@ -68,6 +68,11 @@ public:
 		bFound = false;
 		return 0.f;
 	}
+	static inline float CountInGoodsQuantityArray(const FName& GoodsName, const TArray<FGoodsQuantity>& GoodsQuantities)
+	{
+		bool bFound;
+		return CountInGoodsQuantityArray(GoodsName, GoodsQuantities, bFound);
+	}
 
 	// Convenience to allow getting counts using GoodsQuantities as a filter of types to count.
 	// Returns the quantities of goods in GoodsToCount that match the goods types in GoodsTypesToCount.

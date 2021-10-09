@@ -415,12 +415,12 @@ void AMMBlock::DestroyBlock()
 }
 
 
-TArray<FGoodsQuantity> AMMBlock::GetBaseMatchGoods_Implementation(const UGoodsDropper* GoodsDropper)
+TArray<FGoodsQuantity> AMMBlock::GetBaseMatchGoods_Implementation(const UGoodsDropper* GoodsDropper, const float QuantityScale)
 {
 	// const_cast because goods dropper must be passed as const in order to appear as input pin. GoodsDropper is not originally declared const.
 	// UPARAM(ref) does not work since UObjects must be passed as pointers.
 	UGoodsDropper* Dropper = const_cast<UGoodsDropper*>(GoodsDropper);
-	return Dropper->EvaluateGoodsDropSet(GetBlockType().MatchDropGoods);
+	return Dropper->EvaluateGoodsDropSet(GetBlockType().MatchDropGoods, QuantityScale);
 }
 
 
