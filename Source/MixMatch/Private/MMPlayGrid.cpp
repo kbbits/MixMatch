@@ -85,6 +85,7 @@ void AMMPlayGrid::Tick(float DeltaSeconds)
 	Super::Tick(DeltaSeconds);
 	PlaySounds(PlaySoundQueue);
 	PlaySoundQueue.Empty();
+
 	switch (GridState) {
 	case EMMGridState::Moving:
 		//MoveTick(DeltaSeconds);
@@ -121,6 +122,15 @@ void AMMPlayGrid::Tick(float DeltaSeconds)
 		break;
 	case EMMGridState::Settling:
 		SettleTick(DeltaSeconds);
+		break;
+	case EMMGridState::Normal:
+		if (GridLockedState == EMMGridLockState::Unchecked || GridLockedState == EMMGridLockState::Checking) {
+			if (CheckGridIsLocked() == EMMGridLockState::Locked)
+			{
+				// Call delegate
+				OnGridLocked.Broadcast(this);
+			}
+		}
 		break;
 	default:
 		break;
@@ -752,6 +762,7 @@ bool AMMPlayGrid::MoveBlock(AMMBlock* MovingBlock, AMMPlayGridCell* ToCell)
 	}
 	else
 	{
+		GridLockedState = EMMGridLockState::Unchecked;
 		MovingBlock->bMovedByPlayer = true;
 		UnsettledBlocks.AddUnique(MovingBlock);
 		MovingBlock->OnMove(ToCell);
@@ -773,6 +784,88 @@ bool AMMPlayGrid::MoveBlock(AMMBlock* MovingBlock, AMMPlayGridCell* ToCell)
 	// TODO: Remove this debug
 	DebugBlocks(FString("MoveBlock"));
 	return true;
+}
+
+
+bool AMMPlayGrid::BlockMoveHasMatch(const AMMBlock* CheckBlock, const EMMDirection DirectionToCheck)
+{
+	if (CheckBlock == nullptr || CheckBlock->Cell() == nullptr) {
+		return false;
+	}
+	FIntPoint NeighborCoords = CheckBlock->GetCoords() + UMMMath::DirectionToOffset(DirectionToCheck);
+	AMMPlayGridCell* ToCell = GetCell(NeighborCoords);
+	//UE_LOG(LogMMGame, Log, TEXT("CheckBlockMoveFormatch from %s to %s"), *(CheckBlock->GetCoords()).ToString(), *NeighborCoords.ToString());
+	bool bFoundMatch = false;
+	AMMPlayGridCell* FromCell = CheckBlock->Cell();
+	AMMBlock* SwappingBlock = ToCell->CurrentBlock;
+	if (!CheckBlock->CanMove() || (SwappingBlock != nullptr && !SwappingBlock->CanMove())) {
+		return false;
+	}
+	if (!UMMMath::CoordsAdjacent(FromCell->GetCoords(), ToCell->GetCoords())) {
+		return false;
+	}
+	// Get non-const block ref so we can temporarily move it.
+	AMMBlock* MoveBlock = GetBlock(CheckBlock->GetCoords());
+	// Swap the blocks for now
+	ToCell->CurrentBlock = MoveBlock;
+	MoveBlock->OwningGridCell = ToCell;
+	FromCell->CurrentBlock = nullptr;
+	if (SwappingBlock)
+	{
+		FromCell->CurrentBlock = SwappingBlock;
+		SwappingBlock->OwningGridCell = FromCell;
+	}
+	// Check for matches on moved block
+	UBlockMatch* TmpBlockMatch = nullptr;
+	if (MatchHorizontal(MoveBlock, &TmpBlockMatch, false) > 0)
+	{
+		bFoundMatch = true;
+		TmpBlockMatch = nullptr;
+	}
+	if (!bFoundMatch && MatchVertical(MoveBlock, &TmpBlockMatch, false) > 0)
+	{
+		bFoundMatch = true;
+		TmpBlockMatch = nullptr;
+	}
+	// Check swapping block
+	if (SwappingBlock)
+	{
+		if (!bFoundMatch && MatchHorizontal(SwappingBlock, &TmpBlockMatch, false) > 0)
+		{
+			bFoundMatch = true;
+			TmpBlockMatch = nullptr;
+		}
+		if (!bFoundMatch && MatchVertical(SwappingBlock, &TmpBlockMatch, false) > 0) 
+		{
+			bFoundMatch = true;
+			TmpBlockMatch = nullptr;
+		}
+	}
+	// Swap the blocks back to original spots after checking
+	FromCell->CurrentBlock = MoveBlock;
+	MoveBlock->OwningGridCell = FromCell;
+	if (SwappingBlock)
+	{
+		ToCell->CurrentBlock = SwappingBlock;
+		SwappingBlock->OwningGridCell = ToCell;
+	}
+	return bFoundMatch;
+}
+
+
+bool AMMPlayGrid::BlockHasMatchingMove(const AMMBlock* CheckBlock, AMMPlayGridCell** MatchMoveDestination)
+{
+	for (EMMDirection CurDirection : UMMMath::OrthogonalDirections)
+	{
+		if (BlockMoveHasMatch(CheckBlock, CurDirection))
+		{
+			if (MatchMoveDestination != nullptr) {
+				(*MatchMoveDestination) = GetCell(CheckBlock->GetCoords() + UMMMath::DirectionToOffset(CurDirection));
+			}
+			return true;
+		}
+	}
+	return false;
 }
 
 
@@ -910,7 +1003,6 @@ int32 AMMPlayGrid::MatchDirection(AMMBlock* StartBlock, const EMMDirection Direc
 					return 0;
 				}
 			}
-			FName AnyMatch = FName(TEXT("Any"));
 			bool bAlreadyMatched = false;
 			// Handle bMatchNextToPreviousInMatchGroup. If we already have some matched blocks, compare our neighbor to the previous 
 			// non-bMatchNextToPreviousInMatchGroup block found in the match instead of thls start block.
@@ -1097,6 +1189,51 @@ bool AMMPlayGrid::PerformActionType(const FMatchActionType& MatchActionType, con
 	MatchAction = nullptr;
 	return bSuccess;
 }
+
+
+
+EMMGridLockState AMMPlayGrid::CheckGridIsLocked()
+{
+	if (GridLockedState == EMMGridLockState::Locked || GridLockedState == EMMGridLockState::NotLocked) {
+		return GridLockedState;
+	}
+	if (GridLockedState == EMMGridLockState::Unchecked) {
+		GridLockCheckCoords == FIntPoint::ZeroValue;
+		GridLockedState = EMMGridLockState::Checking;
+	}
+	for (int32 i = 0; i < GridLockChecksPerTick; i++)
+	{
+		// Check current GridLockCheckCoords
+		AMMBlock* CurBlock = GetBlock(GridLockCheckCoords);
+		if (CurBlock && BlockHasMatchingMove(CurBlock)) 
+		{
+			GridLockedState = EMMGridLockState::NotLocked;
+			return GridLockedState;
+		}
+		// Determine next cell to check
+		if (GridLockCheckCoords.X == SizeX - 1) {
+			// At the end of a row. Check next row up.
+			if (GridLockCheckCoords.Y == SizeY - 1)
+			{
+				// At the top row then there was no match move, so grid is locked.
+				GridLockedState = EMMGridLockState::Locked;
+				return GridLockedState;
+			}
+			else
+			{
+				// Move to next row
+				GridLockCheckCoords.X = 0;
+				GridLockCheckCoords.Y++;
+			}
+		}
+		else {
+			// Move to next cell in row
+			GridLockCheckCoords.X++;
+		}
+	}
+	return GridLockedState;
+}
+
 
 
 void AMMPlayGrid::SettleBlocks()

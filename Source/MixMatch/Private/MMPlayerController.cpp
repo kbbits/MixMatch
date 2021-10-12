@@ -53,6 +53,7 @@ bool AMMPlayerController::CraftRecipe(const FCraftingRecipe& Recipe)
 		if (RecipeManager->GetGoodsForRecipe(Recipe, CraftedGoods))
 		{
 			GoodsInventory->AddSubtractGoodsArray(CraftedGoods, false, true);
+			RecipeManager->IncrementRecipeCraftingCount(Recipe.Name);
 			OnRecipeCrafted.Broadcast(Recipe, 1);
 			return true;
 		}

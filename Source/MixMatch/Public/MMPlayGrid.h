@@ -12,6 +12,9 @@
 // Event dispatcher for when grid gives award for matches
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnMatchAwards, const TArray<UBlockMatch*>&, Matches);
 
+// Event dispatcher for when grid gives award for matches
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnGridLocked, const AMMPlayGrid*, LockedGrid);
+
 /** A match grid containing cells and blocks. */
 UCLASS(minimalapi)
 class AMMPlayGrid : public AActor
@@ -23,6 +26,10 @@ public:
 	// Delegate event when grid gives awards for matches.
 	UPROPERTY(BlueprintAssignable, Category = "EventDispatchers")
 	FOnMatchAwards OnMatchAwards;
+
+	// Delegate event called when grid becomes locked.
+	UPROPERTY(BlueprintAssignable, Category = "EventDispatchers")
+	FOnGridLocked OnGridLocked;
 
 	UPROPERTY(VisibleDefaultsOnly, BlueprintReadOnly)
 	EMMGridState GridState;
@@ -131,6 +138,16 @@ protected:
 	/** Have all current matches finished? */
 	bool bAllMatchesFinished = false;
 
+	/** Has the grid been checked for locked state? And if so, is the grid locked? i.e. no valid moves available. (excluding special powers/actions) */
+	EMMGridLockState GridLockedState = EMMGridLockState::Unchecked;
+
+	/** The last coords that were checked for locked grid status. 
+	 *  This allows us to check for locked state over the span of many ticks. */
+	FIntPoint GridLockCheckCoords = FIntPoint::ZeroValue;
+
+	/** How many potential move matches should be checked each tick.  */
+	int32 GridLockChecksPerTick = 5;
+
 	/** Inventory for this grid */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
 	class UInventoryActorComponent* GoodsInventory;
@@ -154,6 +171,9 @@ private:
 	UPROPERTY(VisibleDefaultsOnly, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
 	class UBillboardComponent* Billboard;
 #endif
+
+
+//###########  Functions ###### 
 
 public:
 	AMMPlayGrid();
@@ -271,6 +291,15 @@ public:
 	UFUNCTION(BlueprintCallable)
 	bool MoveBlock(UPARAM(ref) AMMBlock* MovingBlock, UPARAM(ref) AMMPlayGridCell* ToCell);
 
+	/** Checks a single block for a match if the block were moved in the given direction (swapping with neighboring block, if any.).
+	 *  Note: North is increasing Y axis (up the gri), South is decreasing Y axis (down the grid). West is decreasing on X axis, East increasing X axis. */
+	bool BlockMoveHasMatch(const AMMBlock* CheckBlock, const EMMDirection DirectionToCheck);
+
+	/** Checks a single block to see if it has any moves that would result in a match.
+	 * @returns True if a matching move is found, false if not.
+	 * If true, also returns the first adjacent destination cell to move the block to that results in a match. */
+	bool BlockHasMatchingMove(const AMMBlock* CheckBlock, AMMPlayGridCell** MatchMoveDestination = nullptr);
+
 	//### Matching
 
 	UFUNCTION(BlueprintCallable)
@@ -303,6 +332,14 @@ public:
 
 	UFUNCTION()
 	bool PerformActionType(const FMatchActionType& MatchActionType, const UBlockMatch* Match);
+
+	//### Check for Locked Grid
+
+	/** Check part of the grid to see if grid is locked.
+	 * i.e. check for potential moves that would result in a match. */
+	UFUNCTION()
+	EMMGridLockState CheckGridIsLocked();
+
 
 	//### Settling
 

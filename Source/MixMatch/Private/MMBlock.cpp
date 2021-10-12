@@ -1,15 +1,15 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MMBlock.h"
+#include "UObject/ConstructorHelpers.h"
+#include "Components/StaticMeshComponent.h"
+#include "Engine/StaticMesh.h"
+#include "Kismet/GameplayStatics.h"
 #include "..\MixMatch.h"
 #include "MMPlayGrid.h"
 #include "MMGameMode.h"
 #include "Goods/GoodsDropper.h"
 #include "Goods/GoodsFunctionLibrary.h"
-#include "UObject/ConstructorHelpers.h"
-#include "Components/StaticMeshComponent.h"
-#include "Engine/StaticMesh.h"
-#include "Kismet/GameplayStatics.h"
 
 
 AMMBlock::AMMBlock()
@@ -225,24 +225,26 @@ FBlockType& AMMBlock::GetBlockType()
 }
 
 
-FIntPoint AMMBlock::GetCoords()
+FIntPoint AMMBlock::GetCoords() const
 {
 	if (Cell() == nullptr) { return FIntPoint::NoneValue; }
 	return Cell()->GetCoords();
 }
 
 
-AMMPlayGrid* AMMBlock::Grid()
+AMMPlayGrid* AMMBlock::Grid() const
 {
-	if (OwningGrid) { return OwningGrid; }
+	//if (OwningGrid) { return OwningGrid; }
 	if (Cell() != nullptr) {
-		OwningGrid = Cell()->OwningGrid;
+		return Cell()->OwningGrid;
+		//OwningGrid = Cell()->OwningGrid;
 	}
-	return OwningGrid;
+	// return OwningGrid;
+	return nullptr;
 }
 
 
-AMMPlayGridCell* AMMBlock::Cell()
+AMMPlayGridCell* AMMBlock::Cell() const
 {
 	if (SettleToGridCell != nullptr) {
 		return SettleToGridCell;
@@ -268,19 +270,19 @@ bool AMMBlock::Matches(const AMMBlock* OtherBlock)
 }
 
 
-bool AMMBlock::IsMatched()
+bool AMMBlock::IsMatched() const
 {
 	return bMatchedHorizontal || bMatchedVertical;
 }
 
 
-bool AMMBlock::IsMatchFinished(const UBlockMatch* Match)
+bool AMMBlock::IsMatchFinished(const UBlockMatch* Match) const
 {
 	return !CurrentMatches.Contains(Match);
 }
 
 
-bool AMMBlock::CanMove()
+bool AMMBlock::CanMove() const
 {
 	return !BlockType.bImmobile;
 }
@@ -407,7 +409,7 @@ void AMMBlock::DestroyBlock()
 	}
 	BaseMatDynamic = nullptr;
 	AltMatDynamic = nullptr;
-	OwningGrid = nullptr;
+	//OwningGrid = nullptr;
 	OwningGridCell = nullptr;
 	SettleToGridCell = nullptr;
 	CurrentMatches.Empty();

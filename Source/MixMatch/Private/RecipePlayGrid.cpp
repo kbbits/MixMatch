@@ -12,6 +12,7 @@
 
 ARecipePlayGrid::ARecipePlayGrid()
 {
+	NonIngredientBlockTypeSetBaseName = FString(TEXT("Default"));
 }
 
 
@@ -19,6 +20,7 @@ void ARecipePlayGrid::SetRecipeManager(URecipeManagerComponent* NewRecipeManager
 {
 	RecipeManager = NewRecipeManager;
 }
+
 
 URecipeManagerComponent* ARecipePlayGrid::GetRecipeManager()
 {
@@ -184,7 +186,11 @@ bool ARecipePlayGrid::GetRandomBlockTypeNameForCellEx_Implementation(const AMMPl
 	// If we haven't found a block name yet, do it via game mode.
 	if(FoundBlockTypeName.IsNone())
 	{
-		SetBlockTypeSetName(FName(FString::Printf(TEXT("Default_%d"), TargetBlockTypes - CraftingInputs.Num())));
+		// TODO: Improve the table name determination logic.
+		// Currently we will set the BlockTypeSetName to a block type set that has no ingredient blocks and has only the number of block types 
+		// normally available to a recipe with a given number of ingredients.
+		// i.e. TargetBlockTypes - CraftingInputs.Num()
+		SetBlockTypeSetName(FName(FString::Printf(TEXT("%s_%d"), *NonIngredientBlockTypeSetBaseName, FMath::Max(0, TargetBlockTypes - CraftingInputs.Num()))));
 		if (bUseExclusionList) {
 			GameMode->GetRandomBlockTypeNameForCell(Cell, FoundBlockTypeName, ExcludedBlockNames);
 		}

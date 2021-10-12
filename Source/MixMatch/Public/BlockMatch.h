@@ -4,6 +4,7 @@
 #include "Goods/GoodsQuantity.h"
 #include "BlockMatch.generated.h"
 
+
 UCLASS(BlueprintType, Blueprintable)
 class MIXMATCH_API UBlockMatch : public UObject
 {

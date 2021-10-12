@@ -16,7 +16,8 @@ URecipeManagerComponent::URecipeManagerComponent()
 	// off to improve performance if you don't need them.
 	PrimaryComponentTick.bCanEverTick = false;
 
-	// ...
+	//Defaults
+	ExperienceTierMultiplier = 1.1f;
 }
 
 
@@ -33,6 +34,12 @@ FCraftingRecipe URecipeManagerComponent::GetRecipe(const FName& RecipeName, bool
 	return FCraftingRecipe();
 }
 
+FCraftingRecipe URecipeManagerComponent::GetRecipe(const FName& RecipeName)
+{
+	bool bFound;
+	return GetRecipe(RecipeName, bFound);
+}
+
 
 FCraftingRecipe URecipeManagerComponent::GetRecipeForGoodsName(const FName& GoodsName, bool& bFound)
 {
@@ -47,6 +54,31 @@ FCraftingRecipe URecipeManagerComponent::GetRecipeForGoodsName(const FName& Good
 }
 
 
+TArray<FCraftingRecipe> URecipeManagerComponent::GetRecipesWithCategory(const FName& Category)
+{
+	const TArray<FName> TmpCats = { Category };
+	return GetRecipesWithCategories(TmpCats);
+}
+
+
+TArray<FCraftingRecipe> URecipeManagerComponent::GetRecipesWithCategories(const TArray<FName>& Categories)
+{
+	InitCraftingRecipes();
+	TArray<FCraftingRecipe> FoundRecipes;
+	for (TPair<FName, FCraftingRecipe> It : AllRecipeData)
+	{
+		for (FName CurCategory : Categories)
+		{
+			if (It.Value.RecipeCategories.Contains(CurCategory)) {
+				FoundRecipes.Add(It.Value);
+				break;
+			}
+		}
+	}
+	return FoundRecipes;
+}
+
+
 int32 URecipeManagerComponent::GetRecipeLevel(const FName& RecipeName)
 {
 	if (RecipeLevels.Contains(RecipeName)) {
@@ -56,14 +88,58 @@ int32 URecipeManagerComponent::GetRecipeLevel(const FName& RecipeName)
 }
 
 
+int32 URecipeManagerComponent::IncrementRecipeLevel(const FName& RecipeName, const int32 IncrementAmount)
+{
+	int32 NewLevel = GetRecipeLevel(RecipeName) + IncrementAmount;
+	SetRecipeLevel(RecipeName, NewLevel);
+	return NewLevel;
+}
+
+
 void URecipeManagerComponent::SetRecipeLevel(const FName& RecipeName, const int32 NewLevel)
 {
 	if (RecipeLevels.Contains(RecipeName)) {
+		int32 OldLevel = RecipeLevels[RecipeName];
 		RecipeLevels[RecipeName] = NewLevel;
+		OnRecipeLevelChanged.Broadcast(GetRecipe(RecipeName), NewLevel, OldLevel);
 	}
 	else {
 		RecipeLevels.Add(RecipeName, NewLevel);
 	}
+}
+
+
+bool URecipeManagerComponent::IsRecipeReadyForLevelUp_Implementation(const FName& RecipeName)
+{
+	return GetRecipeCraftingCount(RecipeName) >= FMath::Pow(GetRecipeLevel(RecipeName), 2);
+}
+
+
+bool URecipeManagerComponent::IsRecipeUnlocked(const FName& RecipeName)
+{
+	return GetRecipeLevel(RecipeName) > 0;
+}
+
+
+int32 URecipeManagerComponent::IncrementRecipeCraftingCount(const FName& RecipeName, const int32 IncrementAmount)
+{
+	int32& CurTotal = RecipeCraftings.FindOrAdd(RecipeName);
+	
+	CurTotal = CurTotal + IncrementAmount;
+	while (IsRecipeReadyForLevelUp(RecipeName)) {
+		IncrementRecipeLevel(RecipeName);
+	}	
+	return CurTotal;
+}
+
+
+int32 URecipeManagerComponent::GetRecipeCraftingCount(const FName& RecipeName)
+{
+	int32* CurTotal = RecipeCraftings.Find(RecipeName);
+	if (CurTotal) {
+		return *CurTotal;
+	}
+	return 0;
 }
 
 
@@ -92,14 +168,17 @@ bool URecipeManagerComponent::GetBaseIngredientsForRecipe(const FName& RecipeNam
 		{
 			if (InputGoodsData.GoodsTags.Contains(FName(TEXT("Resource")))) 
 			{
+				// Goods tagged as "Resource" are base goods
 				TmpBaseGoods.Add(GoodsInput);
 			}
 			else
 			{
+				// Go down the chain, get the goods required to produce this good
 				FName* ProducingRecipeName = GoodsToRecipeMap.Find(InputGoodsData.Name);
 				if (ProducingRecipeName)
 				{
 					TArray<FGoodsQuantity> ProducingRecipeGoods;
+					// RECURSION
 					if (GetBaseIngredientsForRecipe(*ProducingRecipeName, ProducingRecipeGoods))
 					{
 						TmpBaseGoods.Append(UGoodsFunctionLibrary::MultiplyGoodsQuantities(ProducingRecipeGoods, GoodsInput.Quantity));
@@ -162,6 +241,45 @@ bool URecipeManagerComponent::GetGoodsForRecipe(const FCraftingRecipe& Recipe, T
 }
 
 
+int32 URecipeManagerComponent::GetExperienceForRecipe(const FCraftingRecipe& Recipe)
+{
+	return CalculateExperienceForRecipe(Recipe, Recipe.Name);
+}
+
+
+int32 URecipeManagerComponent::CalculateExperienceForRecipe(const FCraftingRecipe& Recipe, const FName& TopRecipeToCheck)
+{
+	if (Recipe.Tier <= 1) {
+		return Recipe.OverrideCraftingExperience;
+	}
+	if (TopRecipeToCheck == Recipe.Name)
+	{
+		UE_LOG(LogMMGame, Warning, TEXT("RecipeManagerComponent::CalculateExperienceForRecipe - Found circular recipe chain with %s"), *TopRecipeToCheck.ToString());
+		return 0;
+	}
+	float TotalExperience = 0.f;
+	bool bFound;
+	for (FGoodsQuantity IngredientRequired : Recipe.CraftingInputs)
+	{
+		FCraftingRecipe IngredientRequiredRecipe = GetRecipeForGoodsName(IngredientRequired.Name, bFound);
+		TArray<FGoodsQuantity> GoodsProducedByRequirementRecipe;
+		GetGoodsForRecipe(IngredientRequiredRecipe, GoodsProducedByRequirementRecipe, 0.5f, true);
+		for (FGoodsQuantity GoodProducedByRequirement : GoodsProducedByRequirementRecipe)
+		{
+			if (IngredientRequired.Name == GoodProducedByRequirement.Name && GoodProducedByRequirement.Quantity > 0.f)
+			{
+				float IngredientExperience = CalculateExperienceForRecipe(IngredientRequiredRecipe, TopRecipeToCheck);
+				IngredientExperience = IngredientExperience * (IngredientRequired.Quantity / GoodProducedByRequirement.Quantity);
+				TotalExperience += IngredientExperience;
+				break;
+			}
+		}
+	}
+	return FMath::TruncToInt(TotalExperience * ExperienceTierMultiplier);
+}
+
+
+
 int32 URecipeManagerComponent::CraftableCountForGoods(const TArray<FGoodsQuantity>& GoodsQuantities, const FCraftingRecipe& Recipe)
 {
 	int32 MinCraftings = 0;
@@ -208,9 +326,11 @@ void URecipeManagerComponent::InitCraftingRecipes(bool bForceRefresh)
 	for (const TPair<FName, uint8*>& It : CraftingRecipesTable->GetRowMap())
 	{
 		FCraftingRecipe FoundRecipe = *reinterpret_cast<FCraftingRecipe*>(It.Value);
+		//if (!FoundRecipe.Name.IsNone() && !RecipeLevels.Contains(FoundRecipe.Name)) {
+		//	RecipeLevels.Add(FoundRecipe.Name, 0);
+		//}
 		AllRecipeData.Add(It.Key, FoundRecipe);
 		// Fill in the GoodsToRecipeMap
-		//TArray<FGoodsQuantity> AllResultGoods = GameMode->GetGoodsDropper()->EvaluateGoodsDropChancePercent(ResultsDrops, 1.f);
 		TArray<FGoodsQuantity> AllResultGoods;
 		if (!GetGoodsForRecipe(FoundRecipe, AllResultGoods, 1.f, true)) {
 			UE_LOG(LogMMGame, Error, TEXT("RecipeManager::InitCraftingRecipes - Could not get goods for recipe: %s"), *FoundRecipe.Name.ToString());

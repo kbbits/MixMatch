@@ -3,6 +3,21 @@
 
 #include "MMMath.h"
 
+const TArray<EMMDirection> UMMMath::OrthogonalDirections = { EMMDirection::North, EMMDirection::East, EMMDirection::South, EMMDirection::West };
+const TArray<EMMDirection> UMMMath::DiagonalDirections = { EMMDirection::NorthEast, EMMDirection::SouthEast, EMMDirection::SouthWest, EMMDirection::NorthWest };
+
+bool UMMMath::IsOrthogonal(const EMMDirection Direction)
+{
+	return OrthogonalDirections.Contains(Direction);
+}
+
+
+bool UMMMath::IsDiagonal(const EMMDirection Direction)
+{
+	return DiagonalDirections.Contains(Direction);
+}
+
+
 FVector2D UMMMath::DirectionToOffsetVector(const EMMDirection Direction)
 {
 	switch (Direction)

@@ -7,6 +7,7 @@
 #include "Goods/GoodsDropChance.h"
 #include "CraftingRecipe.generated.h"
 
+
 USTRUCT(BlueprintType)
 struct FCraftingRecipe : public FTableRowBase
 {

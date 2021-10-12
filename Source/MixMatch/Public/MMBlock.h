@@ -100,7 +100,7 @@ protected:
 	FBlockType BlockType;
 
 	/** The grid */
-	AMMPlayGrid* OwningGrid;
+	//AMMPlayGrid* OwningGrid;
 
 	bool bMoveSuccessful;
 
@@ -151,15 +151,15 @@ public:
 
 	/** Get this block's current grid coordinates. */
 	UFUNCTION(BlueprintPure)
-	FIntPoint GetCoords();
+	FIntPoint GetCoords() const;
 
 	/** Accessor to get the grid this block belongs to. */
 	UFUNCTION(BlueprintPure)
-	AMMPlayGrid* Grid();
+	AMMPlayGrid* Grid() const;
 
 	/** The cell this block is currently in. This will either be OwningGridCell or SettleToCell. */
 	UFUNCTION(BlueprintPure)
-	AMMPlayGridCell* Cell();
+	AMMPlayGridCell* Cell() const;
 
 	/** Does this block have the given category? */
 	UFUNCTION(BlueprintPure)
@@ -171,14 +171,14 @@ public:
 
 	/** Is this block currently part of a match? */
 	UFUNCTION(BlueprintPure)
-	bool IsMatched();
+	bool IsMatched() const;
 
 	/** Is the given match one of this block's current matches? If not, then this block has finished the match. */
 	UFUNCTION(BlueprintPure)
-	bool IsMatchFinished(const UBlockMatch* Match);
+	bool IsMatchFinished(const UBlockMatch* Match) const;
 
 	UFUNCTION(BlueprintPure)
-	bool CanMove();
+	bool CanMove() const;
 
 	AMMPlayGridCell* FindSettleCell();
 

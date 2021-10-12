@@ -20,6 +20,12 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	int32 TargetBlockTypes = 4;
 
+	/** The string to be pre-pended when looking for the block type set to use for generating non-ingredient blocks. 
+	 *  More clearly:  Non-Ingredient BlockTypeSet name
+	 *  Actual block type set name used will be "<NonIngredientBlockTypeSetName>_<clamp to >= 0 (TargetBlockTYpes - Recipe.CraftingIngredients.Num())>"  */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite)
+	FString NonIngredientBlockTypeSetBaseName;
+
 	/** When generating blocks, blocks that represent ingredients for the current recipe will only be generated if they 
 	 *  exist in this grid's inventory. Also, when these ingredient blocks are spawned, their respective goods will be 
 	 *  removed from the grid's inventory. */
@@ -43,7 +49,8 @@ public:
 	UFUNCTION(BlueprintCallable)
 	void SetRecipeManager(UPARAM(ref) URecipeManagerComponent* NewRecipeManager);
 
-	/** Get the grid's current recipe manager. */
+	/** Get the grid's current recipe manager. 
+	 *  If not set, this will set the recipe manager to the one on the player controller. */
 	UFUNCTION(BlueprintPure)
 	URecipeManagerComponent* GetRecipeManager();
 

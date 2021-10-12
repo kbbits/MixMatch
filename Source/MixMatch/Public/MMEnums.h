@@ -11,6 +11,18 @@ enum class EMMGridState : uint8
 };
 
 
+UENUM(BlueprintType)
+enum class EMMGridLockState : uint8
+{
+	// Grid has not been checked for locked state
+	Unchecked	UMETA(DisplayName = "Unchecked"),
+	// Currently in process of checking the grid for locked state
+	Checking	UMETA(DisplayName = "Checking"),
+	// At least one matching move exists in the grid
+	NotLocked	UMETA(DisplayName = "Not Locked"),
+	// No moves that result in a match exist
+	Locked		UMETA(DisplayName = "Locked")
+};
 
 UENUM(BlueprintType)
 enum class EMMDirection : uint8
