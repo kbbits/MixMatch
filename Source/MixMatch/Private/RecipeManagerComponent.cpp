@@ -44,8 +44,7 @@ FCraftingRecipe URecipeManagerComponent::GetRecipe(const FName& RecipeName)
 FCraftingRecipe URecipeManagerComponent::GetRecipeForGoodsName(const FName& GoodsName, bool& bFound)
 {
 	FName* ProducingRecipeName = GoodsToRecipeMap.Find(GoodsName);
-	if (ProducingRecipeName != nullptr) 
-	{
+	if (ProducingRecipeName != nullptr) {
 		return GetRecipe(*ProducingRecipeName, bFound);
 	}
 	UE_LOG(LogMMGame, Error, TEXT("RecipeManager::GetRecipeForGoodsName - No producing recipe found for goods name: %s"), *GoodsName.ToString());
@@ -69,7 +68,8 @@ TArray<FCraftingRecipe> URecipeManagerComponent::GetRecipesWithCategories(const 
 	{
 		for (FName CurCategory : Categories)
 		{
-			if (It.Value.RecipeCategories.Contains(CurCategory)) {
+			if (It.Value.RecipeCategories.Contains(CurCategory)) 
+			{
 				FoundRecipes.Add(It.Value);
 				break;
 			}
@@ -98,14 +98,18 @@ int32 URecipeManagerComponent::IncrementRecipeLevel(const FName& RecipeName, con
 
 void URecipeManagerComponent::SetRecipeLevel(const FName& RecipeName, const int32 NewLevel)
 {
-	if (RecipeLevels.Contains(RecipeName)) {
-		int32 OldLevel = RecipeLevels[RecipeName];
-		RecipeLevels[RecipeName] = NewLevel;
-		OnRecipeLevelChanged.Broadcast(GetRecipe(RecipeName), NewLevel, OldLevel);
+	int32 OldLevel = 0;
+	if (RecipeLevels.Contains(RecipeName)) 
+	{
+		OldLevel = RecipeLevels[RecipeName];
+		if (OldLevel != NewLevel) {
+			RecipeLevels[RecipeName] = NewLevel;
+		}
 	}
 	else {
 		RecipeLevels.Add(RecipeName, NewLevel);
 	}
+	OnRecipeLevelChanged.Broadcast(GetRecipe(RecipeName), NewLevel, OldLevel);
 }
 
 
@@ -123,9 +127,8 @@ bool URecipeManagerComponent::IsRecipeUnlocked(const FName& RecipeName)
 
 int32 URecipeManagerComponent::IncrementRecipeCraftingCount(const FName& RecipeName, const int32 IncrementAmount)
 {
-	int32& CurTotal = RecipeCraftings.FindOrAdd(RecipeName);
-	
-	CurTotal = CurTotal + IncrementAmount;
+	int32& CurTotal = RecipeCraftings.FindOrAdd(RecipeName);	
+	CurTotal += IncrementAmount;
 	while (IsRecipeReadyForLevelUp(RecipeName)) {
 		IncrementRecipeLevel(RecipeName);
 	}	
@@ -150,7 +153,8 @@ bool URecipeManagerComponent::GetBaseIngredientsForRecipe(const FName& RecipeNam
 	FCraftingRecipe Recipe;
 	bool bFound;
 	BaseGoods.Empty();
-	if (!GameMode) {
+	if (!GameMode) 
+	{
 		UE_LOG(LogMMGame, Error, TEXT("RecipeManager::GetBaseIngredientsForRecipe - Could not get GameMode"));
 		return false;
 	}
@@ -201,13 +205,15 @@ bool URecipeManagerComponent::GetBaseIngredientsForRecipe(const FName& RecipeNam
 bool URecipeManagerComponent::GetGoodsForRecipeName(const FName& RecipeName, TArray<FGoodsQuantity>& OutputGoods, const float QuantityScale, const bool bExcludeBonusGoods)
 {
 	AMMGameMode* GameMode = Cast<AMMGameMode>(UGameplayStatics::GetGameMode(this));
-	if (!GameMode) {
+	if (!GameMode) 
+	{
 		UE_LOG(LogMMGame, Error, TEXT("RecipeManager::GetAverageGoodsFromRecipeName - Could not get GameMode"));
 		return false;
 	}
 	bool bFound;
 	FCraftingRecipe Recipe = GetRecipe(RecipeName, bFound);
-	if (!bFound) { 
+	if (!bFound) 
+	{ 
 		UE_LOG(LogMMGame, Error, TEXT("RecipeManager::GetAverageGoodsFromRecipeName - Recipe %s not found"), *RecipeName.ToString());
 		return false; 
 	}
@@ -217,7 +223,8 @@ bool URecipeManagerComponent::GetGoodsForRecipeName(const FName& RecipeName, TAr
 bool URecipeManagerComponent::GetGoodsForRecipe(const FCraftingRecipe& Recipe, TArray<FGoodsQuantity>& OutputGoods, const float QuantityScale, const bool bExcludeBonusGoods)
 {
 	AMMGameMode* GameMode = Cast<AMMGameMode>(UGameplayStatics::GetGameMode(this));
-	if (!GameMode) {
+	if (!GameMode) 
+	{
 		UE_LOG(LogMMGame, Error, TEXT("RecipeManager::GetAverageGoodsFromRecipe - Could not get GameMode"));
 		return false;
 	}
@@ -233,8 +240,7 @@ bool URecipeManagerComponent::GetGoodsForRecipe(const FCraftingRecipe& Recipe, T
 			GameMode->GetGoodsDropper()->EvaluateGoodsDropSet(BonusCraftingResults, QuantityScale)
 		));
 	}
-	else
-	{
+	else{
 		OutputGoods.Append(GameMode->GetGoodsDropper()->EvaluateGoodsDropSet(CraftingResults, QuantityScale));
 	}
 	return true;
@@ -312,11 +318,13 @@ void URecipeManagerComponent::InitCraftingRecipes(bool bForceRefresh)
 {
 	if (AllRecipeData.Num() > 0 && !bForceRefresh) { return; }
 	AMMGameMode* GameMode = Cast<AMMGameMode>(UGameplayStatics::GetGameMode(this));
-	if (!GameMode) {
+	if (!GameMode) 
+	{
 		UE_LOG(LogMMGame, Error, TEXT("RecipeManager::InitCraftingRecipes - Could not get GameMode"));
 		return;
 	}
-	if (!IsValid(CraftingRecipesTable)) {
+	if (!IsValid(CraftingRecipesTable)) 
+	{
 		UE_LOG(LogMMGame, Error, TEXT("RecipeManager::InitCraftingRecipes - CraftingRecipesTable is not valid"));
 		return;
 	}
@@ -344,8 +352,7 @@ void URecipeManagerComponent::InitCraftingRecipes(bool bForceRefresh)
 					GoodsToRecipeMap[ResultGoods.Name] = FoundRecipe.Name;
 				}
 			}
-			else
-			{
+			else {
 				GoodsToRecipeMap.Add(ResultGoods.Name, FoundRecipe.Name);
 			}
 		}

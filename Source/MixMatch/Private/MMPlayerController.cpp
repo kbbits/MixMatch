@@ -32,7 +32,8 @@ float AMMPlayerController::GetBlockMoveSpeedMultiplier_Implementation()
 
 void AMMPlayerController::SetCurrentGrid(AMMPlayGrid* NewCurrentGrid)
 {
-	if (IsValid(NewCurrentGrid)) {
+	if (IsValid(NewCurrentGrid)) 
+	{
 		CurrentGrid = NewCurrentGrid;
 		OnCurrentGridChanged.Broadcast(CurrentGrid);
 	}

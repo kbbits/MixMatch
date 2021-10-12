@@ -99,9 +99,7 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = Block)
 	FBlockType BlockType;
 
-	/** The grid */
-	//AMMPlayGrid* OwningGrid;
-
+	
 	bool bMoveSuccessful;
 
 	/** The calculated distance at the start of the block's movement.

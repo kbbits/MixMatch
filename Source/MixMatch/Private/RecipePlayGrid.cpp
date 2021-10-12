@@ -61,8 +61,7 @@ const FCraftingRecipe& ARecipePlayGrid::GetRecipe()
 int32 ARecipePlayGrid::GetRecipeLevel()
 {
 	AMMPlayerController* PC = Cast<AMMPlayerController>(UGameplayStatics::GetPlayerController(GetWorld(), 0));
-	if (PC)
-	{
+	if (PC) {
 		return PC->GetRecipeLevel(GetRecipe().Name);
 	}
 	return 0;
@@ -119,7 +118,8 @@ bool ARecipePlayGrid::GetRandomBlockTypeNameForCellEx_Implementation(const AMMPl
 					UE_LOG(LogMMGame, Error, TEXT("RecipePlayGrid::GetRandomBlockTypeNameForCellEx - Could not get block type for ingredient goods name: %s"), *CraftingInputs[i].Name.ToString());
 				}
 			}
-			else {
+			else 
+			{
 				// Not using inventory. So we "have inventory" for all ingredients
 				HasInventoryGoods = CraftingInputs;
 			}

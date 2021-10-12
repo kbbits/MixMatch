@@ -41,8 +41,7 @@ TArray<FGoodsQuantity> UGoodsFunctionLibrary::AddGoodsQuantities(const TArray<FG
 		if (TmpGoodsQuantity) {
 			TmpGoodsQuantity->Quantity = TmpGoodsQuantity->Quantity + Delta;
 		}
-		else
-		{
+		else {
 			TotalGoods.Add(FGoodsQuantity(GoodsTwo.Name, GoodsTwo.Quantity));
 		}
 	}
@@ -56,8 +55,7 @@ FGoodsQuantity UGoodsFunctionLibrary::GoodsQuantityFromRange(FRandomStream& Rand
 	//UE_LOG(LogMMGame, Log, TEXT("    RandStream current seed: %d"), RandStream.GetCurrentSeed());
 	if (QuantityRange.QuantityMax > 0)
 	{
-		if (QuantityRange.QuantityMin == QuantityRange.QuantityMax)
-		{
+		if (QuantityRange.QuantityMin == QuantityRange.QuantityMax)	{
 			Goods.Quantity = QuantityRange.QuantityMin;
 		}
 		else
@@ -99,8 +97,7 @@ TArray<FGoodsQuantity> UGoodsFunctionLibrary::CountsInGoodsQuantities(const TArr
 {
 	TArray<FGoodsQuantity> GoodsCounts;
 	bool bFound;
-	for (FGoodsQuantity GQ : GoodsTypesToCount)
-	{
+	for (FGoodsQuantity GQ : GoodsTypesToCount)	{
 		GoodsCounts.Add(FGoodsQuantity(GQ.Name, CountInGoodsQuantityArray(GQ.Name, GoodsToCount, bFound)));
 	}
 	return GoodsCounts;

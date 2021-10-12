@@ -60,7 +60,7 @@ public:
 	void SetRecipeManager(UPARAM(ref) class URecipeManagerComponent* NewRecipeManager);
 
 	/** Get the current recipe manager. 
-	 *  If not set, this will set the recipe manager to the one on the player controller. */
+	 *  If not set, this will set the recipe manager to the one on the player controller and return it. */
 	UFUNCTION(BlueprintPure)
 	class URecipeManagerComponent* GetRecipeManager();
 

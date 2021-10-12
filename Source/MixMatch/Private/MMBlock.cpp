@@ -108,8 +108,7 @@ bool AMMBlock::MoveTick_Implementation(float DeltaSeconds)
 			SetActorRelativeLocation(GetRelativeLocation() + (FMath::Min(MoveSpeed * DeltaSeconds, TargetDistance) * DirVector));
 		}
 	}
-	else
-	{
+	else {
 		MoveFinished();
 	}
 	return true;
@@ -119,7 +118,8 @@ bool AMMBlock::MoveTick_Implementation(float DeltaSeconds)
 bool AMMBlock::MatchTick_Implementation(float DeltaSeconds)
 {
 	// Base class does nothing but call MatchFinished on all current matches.
-	if (CurrentMatches.Num() > 0) {
+	if (CurrentMatches.Num() > 0) 
+	{
 		TArray<UBlockMatch*> MatchesToFinish;
 		MatchesToFinish.Append(CurrentMatches);
 		for (UBlockMatch* CurMatch : MatchesToFinish) {
@@ -170,7 +170,8 @@ bool AMMBlock::SettleTick_Implementation(float DeltaSeconds)
 		if (TargetDistance <= 1.f)
 		{
 			SetActorRelativeLocation(Cell()->GetBlockLocalLocation());
-			if (SettleToGridCell) {
+			if (SettleToGridCell) 
+			{
 				if (ChangeOwningGridCell(SettleToGridCell)) {
 					SettleFinished();
 				}
@@ -234,12 +235,9 @@ FIntPoint AMMBlock::GetCoords() const
 
 AMMPlayGrid* AMMBlock::Grid() const
 {
-	//if (OwningGrid) { return OwningGrid; }
 	if (Cell() != nullptr) {
 		return Cell()->OwningGrid;
-		//OwningGrid = Cell()->OwningGrid;
 	}
-	// return OwningGrid;
 	return nullptr;
 }
 
@@ -646,7 +644,8 @@ void AMMBlock::UpdateBlockVis()
 		//	//GetBlockMesh()->SetMaterial(0, AltMaterial);
 		//	GetBlockMesh()->SetMaterial(0, AltMatDynamic);
 		//}
-		if (!IsValid(BaseMatDynamic)) {
+		if (!IsValid(BaseMatDynamic)) 
+		{
 			BaseMatDynamic = GetBlockMesh()->CreateDynamicMaterialInstance(0, BaseMaterial);
 			//GetBlockMesh()->SetMaterial(0, BaseMaterial);
 			GetBlockMesh()->SetMaterial(0, BaseMatDynamic);
@@ -657,7 +656,8 @@ void AMMBlock::UpdateBlockVis()
 	}
 	else
 	{
-		if (!IsValid(BaseMatDynamic)) {
+		if (!IsValid(BaseMatDynamic)) 
+		{
 			BaseMatDynamic = GetBlockMesh()->CreateDynamicMaterialInstance(0, BaseMaterial);
 			//GetBlockMesh()->SetMaterial(0, BaseMaterial);
 			GetBlockMesh()->SetMaterial(0, BaseMatDynamic);

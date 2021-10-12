@@ -29,10 +29,10 @@ void AMMGameMode::BeginPlay()
 	TArray<AActor*> AllGrids;
 	AMMPlayerController* PC = Cast<AMMPlayerController>(UGameplayStatics::GetPlayerController(GetWorld(), 0));
 	check(PC);
-	if (PC) {
+	if (PC) 
+	{
 		UGameplayStatics::GetAllActorsOfClass(GetWorld(), AMMPlayGrid::StaticClass(), AllGrids);
-		if (AllGrids.Num() > 0)
-		{
+		if (AllGrids.Num() > 0)	{
 			PC->SetCurrentGrid(Cast<AMMPlayGrid>(AllGrids[0]));
 		}
 	}
@@ -135,19 +135,22 @@ bool AMMGameMode::GetRandomBlockTypeNameForCell(const AMMPlayGridCell* Cell, FNa
 				break;
 			}
 		}
-		if (PickedBlockTypeName == NAME_None) {
+		if (PickedBlockTypeName == NAME_None) 
+		{
 			UE_LOG(LogMMGame, Error, TEXT("MMGameMode::GetRandomBlockTypeNameForCell - No weighted block type found in BlockTypeSet %s"), *CurrentWeightedBlockTypeSetName.ToString());
 			return false;
 		}
 	}
 	// Grab the actual block type from our block type name map to make sure the picked name is in our map. (should always be found)
 	FBlockType* pBlockType = CachedBlockTypes.Find(PickedBlockTypeName);
-	if (pBlockType) {
+	if (pBlockType) 
+	{
 		FoundBlockTypeName = pBlockType->Name;
 		//UE_LOG(LogMMGame, Log, TEXT("MMGameMode::GetRandomBlockTypeNameForCell - Got block type %s from BlockTypeSet %s"), *FoundBlockTypeName.ToString(), *CurrentWeightedBlockTypeSetName.ToString());
 		return true;
 	}
-	else {
+	else 
+	{
 		UE_LOG(LogMMGame, Error, TEXT("MMGameMode::GetRandomBlockTypeNameForCell - Block type %s not found in BlockTypeSet %s"), *PickedBlockTypeName.ToString(), *CurrentWeightedBlockTypeSetName.ToString());
 		return false;
 	}
@@ -177,12 +180,14 @@ bool AMMGameMode::GetGoodsForMatch_Implementation(const UBlockMatch* Match, FGoo
 	check(Match);
 	MatchGoods.Goods.Empty();
 	// TotalGoods is set in MMPlayGrid::ResolveMatches
-	if (Match->TotalGoods.Num() > 0) {
+	if (Match->TotalGoods.Num() > 0) 
+	{
 		MatchGoods.Goods.Append(Match->TotalGoods);
 		return true;
 	}
 	InitGoodsDropper();
-	if (!IsValid(GoodsDropper)) {
+	if (!IsValid(GoodsDropper)) 
+	{
 		UE_LOG(LogMMGame, Error, TEXT("MMGameMode::GetGoodsForMatch - GoodsDropper is not valid"));
 		return false;
 	}	
@@ -207,7 +212,8 @@ bool AMMGameMode::GetGoodsForMatch_Implementation(const UBlockMatch* Match, FGoo
 		}
 	}
 	// After normal goods, including bonus goods, have been determined, apply the cumulative overall multiplier. (if any)
-	if (OverallMult > 0.f) {
+	if (OverallMult > 0.f) 
+	{
 		MatchGoods.Goods.Append(
 			UGoodsFunctionLibrary::MultiplyGoodsQuantities(
 				// Use the AddGoodsQuantities function to consolidate all goods quantities to one total per goods type.}
@@ -266,7 +272,8 @@ bool AMMGameMode::SetBlockTypeSetName(const FName& BlockTypeSetName)
 void AMMGameMode::InitCachedBlockTypes(bool bForceRefresh)
 {
 	if (!(CachedBlockTypes.Num() == 0 || bForceRefresh)) { return; }
-	if (!IsValid(BlocksTable)) {
+	if (!IsValid(BlocksTable)) 
+	{
 		UE_LOG(LogMMGame, Error, TEXT("AMMGameMode::InitCachedBlockTypes - BlocksTable is not valid"));
 		return;
 	}
@@ -328,7 +335,8 @@ bool AMMGameMode::InitWeightedBlockTypes(const FName& BlockTypeSetName, bool bFo
 void AMMGameMode::InitCachedGoodsTypes(bool bForceRefresh)
 {
 	if (CachedGoodsTypes.Num() > 0 && !bForceRefresh) { return; }
-	if (!IsValid(GoodsTable)) {
+	if (!IsValid(GoodsTable)) 
+	{
 		UE_LOG(LogMMGame, Error, TEXT("MMGameMode::InitCachedGoodsTypes - GoodsTable is null."));
 		return;
 	}
