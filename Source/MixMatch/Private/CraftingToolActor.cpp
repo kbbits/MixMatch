@@ -96,8 +96,18 @@ void ACraftingToolActor::SpawnGrid()
 		CurrentGrid->DestroyGrid();
 		CurrentGrid = nullptr;
 	}
+	FActorSpawnParameters SpawnParams;
+	SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+	SpawnParams.Owner = this;
 	TSubclassOf<AMMPlayGrid> LoadedGridClass = GridClass.LoadSynchronous();
-	CurrentGrid = NewObject<AMMPlayGrid>(this, LoadedGridClass);
+	AMMPlayGrid* NewGrid = GetWorld()->SpawnActor<AMMPlayGrid>(
+		LoadedGridClass,
+		FVector::ZeroVector,
+		GetActorRotation(),
+		SpawnParams
+	);
+	check(NewGrid);
+	CurrentGrid = NewGrid;
 }
 
 
