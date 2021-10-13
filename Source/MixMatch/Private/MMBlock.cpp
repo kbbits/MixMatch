@@ -146,12 +146,12 @@ bool AMMBlock::SettleTick_Implementation(float DeltaSeconds)
 			// Check if block is low enough to no longer be "falling into grid"
 			if (GetRelativeLocation().Z <= (TopCell->GetBlockLocalLocation().Z + FMath::Max(Grid()->NewBlockDropInHeight, 10.f))) 
 			{
-				// If we are low enough try to occupy our cell if we aren't already. (should be the top cell of the column)
+				bFallingIntoGrid = false;
+				Grid()->BlocksFallingIntoGrid[GetCoords().X].Blocks.RemoveSingle(this);
+				// If we are low enough try to occupy our cell if we aren't already. (cell should be the top cell of the column)
 				if (SettleToGridCell) {
 					ChangeOwningGridCell(SettleToGridCell);
 				}
-				bFallingIntoGrid = false;
-				Grid()->BlocksFallingIntoGrid[GetCoords().X].Blocks.RemoveSingle(this);
 			}
 		}
 		// Check if we're done settling/moving
@@ -292,6 +292,7 @@ AMMPlayGridCell* AMMBlock::FindSettleCell()
 	int32 AllOpenBelow = 0;
 	if (Grid())
 	{
+		// Always try to settle to cell directly below current cell
 		AMMPlayGridCell* NextCell = Grid()->GetCell(GetCoords() + FIntPoint(0, -1));
 		if (NextCell && !IsValid(NextCell->CurrentBlock)) {
 			return NextCell;
@@ -318,21 +319,31 @@ AMMPlayGridCell* AMMBlock::FindSettleCell()
 bool AMMBlock::ChangeOwningGridCell(AMMPlayGridCell* ToCell)
 {
 	check(ToCell);
+	AMMPlayGridCell* OldOwningCell = OwningGridCell;
+	AMMPlayGridCell* OldCell = Cell();
+	bool bSuccess = false;
 	// Set new cell
 	if (IsValid(ToCell->CurrentBlock) && ToCell->CurrentBlock != this)
 	{
+		// New cell is occupied, so set SettleToGridCell instead
 		if (SettleToGridCell != ToCell)
 		{
-			// New cell is occupied, so set SettleToGridCell instead
-			UE_LOG(LogMMGame, Log, TEXT("MMBlock::ChangeOwningGridCell - Changing block %s at %s to cell %s that already has different block: %s"), *GetName(), *GetCoords().ToString(), *ToCell->GetCoords().ToString(), *ToCell->CurrentBlock->GetName());
+			if (OldCell) {
+				UE_LOG(LogMMGame, Log, TEXT("MMBlock::ChangeOwningGridCell - Changing block %s at %s to cell %s that already has different block: %s"), *GetName(), *OldCell->GetCoords().ToString(), *ToCell->GetCoords().ToString(), *ToCell->CurrentBlock->GetName());
+			}
+			else {
+				UE_LOG(LogMMGame, Log, TEXT("MMBlock::ChangeOwningGridCell - Adding block %s to cell %s that already has different block: %s"), *GetName(), *ToCell->GetCoords().ToString(), *ToCell->CurrentBlock->GetName());
+			}
 			SettleToGridCell = ToCell;
 		}
-		return false;
+		if (OwningGridCell != nullptr) {
+			UE_LOG(LogMMGame, Warning, TEXT("MMBlock::ChangeOwningGridCell - Changed block %s had an owning cell at %s"), *GetName(), *OwningGridCell->GetCoords().ToString());
+			OwningGridCell = nullptr;
+		}
+		bSuccess = false;
 	}
 	else
-	{
-		AMMPlayGridCell* OldCell = Cell();
-		AMMPlayGridCell* OldOwningCell = OwningGridCell;
+	{			
 		OwningGridCell = ToCell;
 		OwningGridCell->CurrentBlock = this;
 		SettleToGridCell = nullptr;
@@ -342,16 +353,16 @@ bool AMMBlock::ChangeOwningGridCell(AMMPlayGridCell* ToCell)
 		else {
 			UE_LOG(LogMMGame, Log, TEXT("MMBlock::ChangeOwningGridCell - Adding new block %s to cell %s"), *GetName(), *GetCoords().ToString());
 		}
-		// Clear current cell
-		if (OldOwningCell && OldOwningCell != OwningGridCell && OldOwningCell->CurrentBlock == this) 
-		{
-			UE_LOG(LogMMGame, Log, TEXT("                                 Block %s at %s cleared it's old cell %s"), *GetName(), *GetCoords().ToString(), *OldOwningCell->GetCoords().ToString());
-			OldOwningCell->CurrentBlock = nullptr;
-			Grid()->CellBecameOpen(OldOwningCell);			
-		}
-		return true;
-	}	
-	return false;
+		bSuccess = true;
+	}
+	// Clear old owning cell
+	if (OldOwningCell && OldOwningCell != OwningGridCell && OldOwningCell->CurrentBlock == this)
+	{
+		UE_LOG(LogMMGame, Log, TEXT("                                 Block %s at %s cleared it's old cell %s"), *GetName(), *GetCoords().ToString(), *OldOwningCell->GetCoords().ToString());
+		OldOwningCell->CurrentBlock = nullptr;
+		Grid()->CellBecameOpen(OldOwningCell);
+	}
+	return bSuccess;
 }
 
 
