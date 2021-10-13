@@ -41,9 +41,14 @@ protected:
 	UPROPERTY()
 	FCraftingRecipe CurrentRecipe;
 
+	UPROPERTY()
+	TArray<FGoodsQuantity> IngredientBlockDropOdds;
+
 public:
 
 	ARecipePlayGrid();
+
+	virtual void StartPlayGrid_Implementation() override;
 
 	/** Set the grid's reference the recipe manager for it to use. */
 	UFUNCTION(BlueprintCallable)
@@ -72,7 +77,7 @@ public:
 
 	/** The percent chance (0.0-1.0) that a dropped-in block will be a recipe ingredient block. 
 	 * This is based on recipe level. */
-	UFUNCTION(BlueprintNativeEvent)
+	UFUNCTION(BlueprintNativeEvent, BlueprintPure)
 	float GetChanceForIngredientBlock();
 
 	/** Override the base class's logic for which blocks will drop into the grid. */
@@ -80,5 +85,9 @@ public:
 
 	/** Override base class so we can deduct ingredient goods from inventory if relevant. */
 	AMMBlock* AddRandomBlockInCellEx(AMMPlayGridCell* Cell, const TArray<FName>& ExcludedBlockNames, const float OffsetAboveCell, const bool bAllowUnsettle, const bool bPreventMatches) override;
+
+protected:
+
+	void InitIngredientBlockDropOdds(const bool bForceRefresh = false);
 };
 

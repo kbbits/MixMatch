@@ -131,14 +131,18 @@ public:
 	void GetSaveableGoods(TArray<FGoodsQuantity>& AllSaveableGoods);
 
 	// [Any]
-	// Check if the inventory contains the given goods and if so, what is the current quantity.
+	// Check if the inventory contains the given goods. Also provides their current quantity.
+	// @returns True if inventory contains the quantity of goods.
 	UFUNCTION(BlueprintPure)
 	bool HasGoods(const FGoodsQuantity Goods, float& CurrrentQuantity);
+	bool HasGoods(const FGoodsQuantity Goods);
 
 	// [Any]
-	// Check that the inventory contains all of the given goods and provides their current quantities.
+	// Check that the inventory contains all of the given goods. Also provides their current quantities.
+	// @returns True if inventory contains all the quantities of goods.
 	UFUNCTION(BlueprintPure)
-	bool HasAllGoods(const TArray<FGoodsQuantity> Goods, TArray<FGoodsQuantity>& CurrrentQuantities);
+	bool HasAllGoods(const TArray<FGoodsQuantity>& Goods, TArray<FGoodsQuantity>& CurrrentQuantities);
+	bool HasAllGoods(const TArray<FGoodsQuantity>& Goods);
 
 	// [Any]
 	// Returns true if inventory is empty.

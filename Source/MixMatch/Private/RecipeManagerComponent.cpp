@@ -113,9 +113,24 @@ void URecipeManagerComponent::SetRecipeLevel(const FName& RecipeName, const int3
 }
 
 
-bool URecipeManagerComponent::IsRecipeReadyForLevelUp_Implementation(const FName& RecipeName)
+float URecipeManagerComponent::GetRecipeLevelUpProgress_Implementation(const FName& RecipeName)
 {
-	return GetRecipeCraftingCount(RecipeName) >= FMath::Pow(GetRecipeLevel(RecipeName), 2);
+	float RecipeLevel = (float)GetRecipeLevel(RecipeName);
+	if (RecipeLevel <= 0) {
+		return 0.f;
+	}
+	float LastCraftingsNeeded = 0.f;
+	float CraftingsNeeded = FMath::Pow(RecipeLevel, 2.f) + 1.f;
+	if (RecipeLevel > 1) {
+		LastCraftingsNeeded = FMath::Pow(RecipeLevel - 1.f, 2.f) + 1.f;
+	}
+	return (((float)GetRecipeCraftingCount(RecipeName)) - LastCraftingsNeeded) / (CraftingsNeeded - LastCraftingsNeeded);
+}
+
+
+bool URecipeManagerComponent::IsRecipeReadyForLevelUp(const FName& RecipeName)
+{
+	return GetRecipeLevelUpProgress(RecipeName) >= 1.f;
 }
 
 

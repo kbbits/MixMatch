@@ -182,6 +182,11 @@ public:
 
 	void SettleTick(float DeltaSeconds);
 
+	/** Called when player begins play on this grid.
+	 *  If overridden in BP, parent should be called. */
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable)
+	void StartPlayGrid();
+
 	/** Minimum number of matching blocks to qualify as a match */
 	UFUNCTION(BlueprintPure)
 	int32 GetMinimumMatchSize();

@@ -73,3 +73,10 @@ void AMMPlayerController::SetRecipeLevel(const FName RecipeName, const int32 New
 {
 	RecipeManager->SetRecipeLevel(RecipeName, NewLevel);
 }
+
+
+void AMMPlayerController::OnPlayGrid_Implementation()
+{
+	GetCurrentGrid()->StartPlayGrid();
+	OnPlayGridStarted.Broadcast(GetCurrentGrid());
+}

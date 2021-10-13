@@ -89,8 +89,12 @@ public:
 	UFUNCTION(BlueprintCallable)
 	void SetRecipeLevel(const FName& RecipeName, const int32 NewLevel);
 
+	/** Gets the percent progress 0.0 - 1.0 for the given recipe to level up to the next level */
+	UFUNCTION(BlueprintNativeEvent, BlueprintPure)
+	float GetRecipeLevelUpProgress(const FName& RecipeName);
+
 	/** Does the recipe currently qualify for a level up? */
-	UFUNCTION(BlueprintNativeEvent)
+	UFUNCTION(BlueprintPure)
 	bool IsRecipeReadyForLevelUp(const FName& RecipeName);
 
 	UFUNCTION(BlueprintPure)

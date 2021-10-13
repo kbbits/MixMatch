@@ -244,11 +244,11 @@ AMMPlayGrid* AMMBlock::Grid() const
 
 AMMPlayGridCell* AMMBlock::Cell() const
 {
+	if (OwningGridCell != nullptr) {
+		return OwningGridCell;
+	}
 	if (SettleToGridCell != nullptr) {
 		return SettleToGridCell;
-	}
-	else if (OwningGridCell != nullptr) {
-		return OwningGridCell;
 	}
 	return nullptr;
 }
@@ -518,17 +518,12 @@ void AMMBlock::OnSettle_Implementation()
 	if (bFallingIntoGrid)
 	{
 		bMoveSuccessful = true;
+		// Immediately queue the next falling block to unsettle
+		Grid()->UnsettleBlockAboveCell(Cell());
 		if (SettleToGridCell != nullptr)
 		{
-			// Immediately queue the next falling block to unsettle
-			Grid()->UnsettleBlockAboveCell(Cell());
 			ChangeOwningGridCell(SettleToGridCell);
 		}
-		//SettleCell = FindSettleCell();		
-		//if (SettleCell != nullptr)
-		//{
-		//	ChangeOwningGridCell(SettleCell);
-		//}
 	}
 	else 
 	{
@@ -538,9 +533,9 @@ void AMMBlock::OnSettle_Implementation()
 		{
 			if (SettleToGridCell != nullptr)
 			{
-				UE_LOG(LogMMGame, Warning, TEXT("   Block %s at %s that was not falling into grid had SettleToGridCell populated"), *GetName(), *GetCoords().ToString());
+				UE_LOG(LogMMGame, Error, TEXT("   Block %s at %s that was not falling into grid had SettleToGridCell populated"), *GetName(), *GetCoords().ToString());
 				bMoveSuccessful = true;
-				Grid()->UnsettleBlockAboveCell(Cell());
+				//Grid()->UnsettleBlockAboveCell(Cell());
 				ChangeOwningGridCell(SettleToGridCell);
 			}
 			SettleCell = FindSettleCell();
@@ -549,7 +544,7 @@ void AMMBlock::OnSettle_Implementation()
 				bMoveSuccessful = true;
 				FIntPoint OrigCoords = GetCoords();
 				if (!ChangeOwningGridCell(SettleCell)) {
-					UE_LOG(LogMMGame, Warning, TEXT("   Block %s at %s that was not falling into grid changed cell to %s occupied by %s"), *GetName(), *OrigCoords.ToString(), *GetCoords().ToString(), *SettleCell->CurrentBlock->GetName());
+					UE_LOG(LogMMGame, Error, TEXT("   Block %s at %s that was not falling into grid changed cell to %s occupied by %s"), *GetName(), *OrigCoords.ToString(), *GetCoords().ToString(), *SettleCell->CurrentBlock->GetName());
 					if (OwningGridCell != nullptr) {
 						Grid()->UnsettleBlockAboveCell(OwningGridCell);
 					}

@@ -179,18 +179,6 @@ public:
 			}
 		}
 		return false;
-		//const FName Any = FName(TEXT("Any"));
-		//if (MatchCode == Any || OtherType.MatchCode == Any) return true;
-		//if (MatchCode == OtherType.MatchCode) return true;
-		//for (FName MC : OtherMatchCodes)
-		//{
-		//	if (MC == OtherType.MatchCode) return true;
-		//}
-		//for (FName OMC : OtherType.OtherMatchCodes)
-		//{
-		//	if (OMC == MatchCode) return true;
-		//}
-		//return false;
 	}
 
 	inline bool operator==(const FBlockType& OtherType)

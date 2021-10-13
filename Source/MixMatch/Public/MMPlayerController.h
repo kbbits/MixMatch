@@ -13,6 +13,9 @@
 // Event dispatcher for when CurrentGrid changes to different grid
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnCurrentGridChanged, const AMMPlayGrid*, NewCurrentGrid);
 
+// Event dispatcher for when player starts play on a grid
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnPlayGridStarted, const AMMPlayGrid*, PlayingGrid);
+
 // Event dispatcher for when a recipe is crafted
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnRecipeCrafted, const FCraftingRecipe&, CraftedRecipe, const int32, QuantityCrafted);
 
@@ -29,6 +32,9 @@ public:
 	// Delegate event when current grid has changed to differnt grid
 	UPROPERTY(BlueprintAssignable, Category = "EventDispatchers")
 	FOnCurrentGridChanged OnCurrentGridChanged;
+
+	UPROPERTY(BlueprintAssignable, Category = "EventDispatchers")
+	FOnPlayGridStarted OnPlayGridStarted;
 
 	// Delegate event when a recipe is crafted
 	UPROPERTY(BlueprintAssignable, Category = "EventDispatchers")
@@ -67,6 +73,14 @@ public:
 
 	UFUNCTION(BlueprintCallable)
 	void SetRecipeLevel(const FName RecipeName, const int32 NewLevel);
+
+	/** Override in BP to set up grid, inventory, etc. for a grid before grid play actually starts. */
+	UFUNCTION(BlueprintImplementableEvent, BlueprintCallable)
+	void OnPrePlayGrid();
+
+	/** Base class calls StartPlayGrid on current grid and fires OnPlayGridStarted event. */
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable)
+	void OnPlayGrid();
 
 };
 

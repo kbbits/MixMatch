@@ -559,8 +559,14 @@ bool UInventoryActorComponent::HasGoods(const FGoodsQuantity Goods, float& Curre
 	return CurrentQuantity >= Goods.Quantity;
 }
 
+bool UInventoryActorComponent::HasGoods(const FGoodsQuantity Goods)
+{
+	float TmpQuantity;
+	return HasGoods(Goods, TmpQuantity);
+}
 
-bool UInventoryActorComponent::HasAllGoods(const TArray<FGoodsQuantity> Goods, TArray<FGoodsQuantity>& CurrentQuantities)
+
+bool UInventoryActorComponent::HasAllGoods(const TArray<FGoodsQuantity>& Goods, TArray<FGoodsQuantity>& CurrentQuantities)
 {
 	bool bHasAll = true;
 	float TmpCurQuantity = 0.0f;
@@ -571,6 +577,13 @@ bool UInventoryActorComponent::HasAllGoods(const TArray<FGoodsQuantity> Goods, T
 		CurrentQuantities.Add(FGoodsQuantity(TmpGQ.Name, TmpCurQuantity));
 	}
 	return bHasAll;
+}
+
+
+bool UInventoryActorComponent::HasAllGoods(const TArray<FGoodsQuantity>& Goods)
+{
+	TArray<FGoodsQuantity> TmpCurGoods;
+	return HasAllGoods(Goods, TmpCurGoods);
 }
 
 
