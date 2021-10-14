@@ -69,11 +69,11 @@ public:
 
 	/** Get the recipes that have the given category */
 	UFUNCTION(BlueprintCallable)
-	TArray<FCraftingRecipe> GetRecipesWithCategory(const FName& Category);
+	TArray<FCraftingRecipe> GetRecipesWithCategory(const FName& Category, const bool bUnlockedRecipesOnly = false);
 
 	/** Get the recipes that have any of the given categories */
 	UFUNCTION(BlueprintCallable)
-	TArray<FCraftingRecipe> GetRecipesWithCategories(const TArray<FName>& Categories);
+	TArray<FCraftingRecipe> GetRecipesWithCategories(const TArray<FName>& Categories, const bool bUnlockedRecipesOnly = false);
 
 	/** Get the current level of the recipe */
 	UFUNCTION(BlueprintPure)

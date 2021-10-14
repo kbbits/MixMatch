@@ -6,6 +6,7 @@
 
 
 AMMPlayerController::AMMPlayerController()
+	: Super()
 {
 	bShowMouseCursor = true;
 	bEnableClickEvents = true;

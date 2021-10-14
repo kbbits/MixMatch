@@ -8,8 +8,8 @@
 #include "Engine/World.h"
 #include "DrawDebugHelpers.h"
 
-AMMPawn::AMMPawn(const FObjectInitializer& ObjectInitializer)
-	: Super(ObjectInitializer)
+AMMPawn::AMMPawn()
+	: Super()
 {
 	AutoPossessPlayer = EAutoReceiveInput::Player0;
 }
@@ -25,7 +25,7 @@ void AMMPawn::Tick(float DeltaSeconds)
 			if (UCameraComponent* OurCamera = PC->GetViewTarget()->FindComponentByClass<UCameraComponent>())
 			{
 				FVector Start = OurCamera->GetComponentLocation();
-				FVector End = Start + (OurCamera->GetComponentRotation().Vector() * 8000.0f);
+				FVector End = Start + (OurCamera->GetComponentRotation().Vector() * 12000.0f);
 				TraceForBlock(Start, End, true);
 			}
 		}
@@ -33,7 +33,7 @@ void AMMPawn::Tick(float DeltaSeconds)
 		{
 			FVector Start, Dir, End;
 			PC->DeprojectMousePositionToWorld(Start, Dir);
-			End = Start + (Dir * 8000.0f);
+			End = Start + (Dir * 12000.0f);
 			TraceForBlock(Start, End, false);
 		}
 	}

@@ -86,7 +86,7 @@ public:
 	UPROPERTY(BlueprintReadOnly, Category = Block)
 	AMMPlayGridCell* SettleToGridCell;
 
-	/** Has this block been unsettled.This remains true while the block is settling. */
+	/** Has this block been unsettled. This remains true while the block is settling. */
 	bool bUnsettled = false;
 
 	/** Is this block currently falling from above the grid into the grid play space? */
@@ -117,6 +117,9 @@ protected:
 	/** Some basic protection for errors when attempting to settle this block */
 	int32 BlockSettleFails = 0;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	bool bDebugLog = true;
+
 private:
 
 	/** The list of matches this block currently belongs two. 
@@ -124,6 +127,8 @@ private:
 	UPROPERTY(BlueprintReadOnly, Category = Block, meta = (AllowPrivateAccess = "true"))
 	TArray<UBlockMatch*> CurrentMatches;
 
+
+	//#######  FUNCTIONS  #######
 public:
 
 	virtual void Tick(float DeltaSeconds) override;

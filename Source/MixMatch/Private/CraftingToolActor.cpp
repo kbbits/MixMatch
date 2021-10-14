@@ -2,8 +2,10 @@
 #include "CraftingToolActor.h"
 #include "Kismet/GameplayStatics.h"
 #include "Components/StaticMeshComponent.h"
+#include "../MixMatch.h"
 #include "MMPlayerController.h"
 #include "RecipeManagerComponent.h"
+#include "RecipePlayGrid.h"
 
 
 
@@ -19,6 +21,25 @@ ACraftingToolActor::ACraftingToolActor()
 	ToolMesh->SetupAttachment(SceneRoot);
 	ToolMesh->OnClicked.AddDynamic(this, &ACraftingToolActor::ToolClicked);
 	ToolMesh->OnInputTouchBegin.AddDynamic(this, &ACraftingToolActor::OnFingerPressedTool);
+}
+
+
+void ACraftingToolActor::CalcCamera(float DeltaTime, struct FMinimalViewInfo& OutResult)
+{
+	Super::CalcCamera(DeltaTime, OutResult);
+
+	FBoxSphereBounds GridBounds = GetVisibleGridBounds();
+	OutResult.FOV = ViewFOV;
+	OutResult.Rotation = (GetGridFacing() * -1.0f).Rotation();
+	float DistanceH = (GridBounds.BoxExtent.X + GridMarginH) / FMath::Tan(FMath::DegreesToRadians(OutResult.FOV) / 2.0f);
+	float DistanceV = (GridBounds.BoxExtent.Z + GridMarginV) / FMath::Tan((FMath::DegreesToRadians(OutResult.FOV) / OutResult.AspectRatio) / 2.0f);
+	OutResult.Location = GridBounds.Origin + (GetGridFacing() * (FMath::Max(DistanceH,DistanceV) + ExtraCameraDistance));
+}
+
+
+FVector ACraftingToolActor::GetGridSpawnLocation_Implementation()
+{
+	return GetActorLocation();
 }
 
 
@@ -40,9 +61,45 @@ URecipeManagerComponent* ACraftingToolActor::GetRecipeManager()
 }
 
 
+TArray<FCraftingRecipe> ACraftingToolActor::GetCraftableRecipes()
+{
+	if (GetRecipeManager()) {
+		return GetRecipeManager()->GetRecipesWithCategories(CraftableRecipeCategories, true);
+	}
+	return TArray<FCraftingRecipe>();
+}
+
+
 void ACraftingToolActor::SetRecipe(const FName& RecipeName)
 {
-	CurrentRecipe = GetRecipeManager()->GetRecipe(RecipeName);
+	
+	if (CraftableRecipeCategories.Num() > 0) 
+	{
+		FCraftingRecipe TmpRecipe = GetRecipeManager()->GetRecipe(RecipeName);
+		for (FName RecipeCatName : TmpRecipe.RecipeCategories)
+		{
+			if (CraftableRecipeCategories.Contains(RecipeCatName)) {
+				CurrentRecipe = TmpRecipe;
+				break;
+			}
+		}
+	}
+	else {
+		CurrentRecipe = GetRecipeManager()->GetRecipe(RecipeName);
+	}
+	if (CurrentRecipe.Name.IsNone()) {
+		UE_LOG(LogMMGame, Error, TEXT("CraftingToolActor::SetRecipe - Recipe %s is not included in %s CraftableRecipeCategories"), *RecipeName.ToString(), *GetName());
+	}
+	else
+	{
+		if (IsValid(CurrentGrid))
+		{
+			ARecipePlayGrid* RecipeGrid = Cast<ARecipePlayGrid>(CurrentGrid);
+			if (RecipeGrid)	{
+				RecipeGrid->SetRecipe(CurrentRecipe);
+			}
+		}
+	}
 }
 
 
@@ -91,29 +148,80 @@ FName ACraftingToolActor::GetDefaultBlockTypeSetName_Implementation()
 
 void ACraftingToolActor::SpawnGrid()
 {
-	if (IsValid(CurrentGrid)) 
-	{
-		CurrentGrid->DestroyGrid();
-		CurrentGrid = nullptr;
-	}
+	DestroyGrid();
 	FActorSpawnParameters SpawnParams;
 	SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 	SpawnParams.Owner = this;
 	TSubclassOf<AMMPlayGrid> LoadedGridClass = GridClass.LoadSynchronous();
 	AMMPlayGrid* NewGrid = GetWorld()->SpawnActor<AMMPlayGrid>(
 		LoadedGridClass,
-		FVector::ZeroVector,
-		GetActorRotation(),
+		GetGridSpawnLocation(),
+		GetActorRotation() + FRotator(0.0f, -90.0f, 0.0f),
 		SpawnParams
 	);
 	check(NewGrid);
+	// Basic properties
+	FIntPoint NewSize = GetNewGridSize();
+	NewGrid->SizeX = NewSize.X;
+	NewGrid->SizeY = NewSize.Y;
+	if (GetGridBlockSize().GetMax() > 0) {
+		NewGrid->BlockSize = GetGridBlockSize();
+	}
+	if (GetNewBlockDropInHeight() > 0) {
+		NewGrid->NewBlockDropInHeight = GetNewBlockDropInHeight();
+	}
+	NewGrid->BlockTypeSetName = GetDefaultBlockTypeSetName();
+	// Recipe grid properties
+	ARecipePlayGrid* RecipeGrid = Cast<ARecipePlayGrid>(NewGrid);
+	if (RecipeGrid)
+	{
+		FCraftingRecipe NewRecipe = GetRecipe();
+		RecipeGrid->SetRecipe(NewRecipe);
+		if (GetCellClass()) {
+			RecipeGrid->CellClass = GetCellClass();
+		}
+		if (GetTargetBlockTypeCount() > 0) {
+			RecipeGrid->TargetBlockTypes = GetTargetBlockTypeCount();
+		}
+	}
 	CurrentGrid = NewGrid;
+}
+
+
+void ACraftingToolActor::SpawnGridBackground()
+{
+	if (IsValid(CurrentGrid)) {
+		CurrentGrid->SpawnGrid();
+	}
 }
 
 
 void ACraftingToolActor::DestroyGrid()
 {
-	// TODO: Implement
+	if (IsValid(CurrentGrid))
+	{
+		CurrentGrid->DestroyGrid();
+		CurrentGrid->Destroy();
+		CurrentGrid = nullptr;
+	}
+}
+
+
+FVector ACraftingToolActor::GetGridFacing_Implementation()
+{
+	return GetActorForwardVector();
+}
+
+FBoxSphereBounds ACraftingToolActor::GetVisibleGridBounds_Implementation() 
+{
+	if (IsValid(CurrentGrid))	{
+		return CurrentGrid->GetVisibleGridBounds();
+	}
+	UE_CLOG(bDebugLog, LogMMGame, Log, TEXT("CraftingToolActor::GetVisibleGridBounds - No current grid."));
+	FBoxSphereBounds TmpBounds;
+	GetActorBounds(true, TmpBounds.Origin, TmpBounds.BoxExtent, true);
+	TmpBounds.SphereRadius = TmpBounds.BoxExtent.Size();
+	return TmpBounds;
 }
 
 

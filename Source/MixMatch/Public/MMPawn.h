@@ -9,7 +9,11 @@
 UCLASS(config=Game)
 class AMMPawn : public APawn
 {
-	GENERATED_UCLASS_BODY()
+	GENERATED_BODY()
+
+public:
+
+	AMMPawn();
 
 public:
 

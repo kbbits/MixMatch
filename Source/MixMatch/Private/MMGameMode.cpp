@@ -13,7 +13,6 @@
 
 AMMGameMode::AMMGameMode()
 {
-	// no pawn by default
 	DefaultPawnClass = AMMPawn::StaticClass();
 	// use our own player controller class
 	PlayerControllerClass = AMMPlayerController::StaticClass();
@@ -24,6 +23,7 @@ AMMGameMode::AMMGameMode()
 
 void AMMGameMode::BeginPlay()
 {
+	Super::BeginPlay();
 	InitCachedGoodsTypes();
 	InitWeightedBlockTypeSets();
 	TArray<AActor*> AllGrids;

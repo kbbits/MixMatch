@@ -47,7 +47,7 @@ AMMPlayGrid::AMMPlayGrid()
 	BlockToggleControlMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("ToggleBlocksControlMesh"));
 	BlockToggleControlMesh->SetStaticMesh(ConstructorStatics.ToggleBlocksMesh.Get());
 	BlockToggleControlMesh->SetRelativeScale3D(FVector(1.f, 1.f, 1.f));
-	BlockToggleControlMesh->SetRelativeLocation(FVector(-50.f, 0.f, -30.f));
+	BlockToggleControlMesh->SetRelativeLocation(FVector(-60.f, 0.f, -30.f));
 	BlockToggleControlMesh->SetupAttachment(SceneRoot);
 	BlockToggleControlMesh->OnClicked.AddDynamic(this, &AMMPlayGrid::ToggleBlocksClicked);
 	BlockToggleControlMesh->OnInputTouchBegin.AddDynamic(this, &AMMPlayGrid::OnFingerPressedToggleBlocks);
@@ -71,7 +71,7 @@ AMMPlayGrid::AMMPlayGrid()
 	SizeY = 7;
 	BlockTypeSetName = FName("Default");
 	bScaleBlocks = false;
-	BlockSize = FVector(100.f, 100.f, 100.f);
+	BlockSize = FVector(50.f, 50.f, 50.f);
 	BlockMargin = 4.f;
 	CellBackgroundMargin = 0.f;
 	CellBackgroundOffset = (BlockSize.Y / 2.f) + 1.f;// 30.f;
@@ -98,7 +98,7 @@ void AMMPlayGrid::Tick(float DeltaSeconds)
 				CheckFlaggedForMatches();
 			}
 			else {
-				UE_LOG(LogMMGame, Log, TEXT("All Blocks Finished Moving"));
+				UE_CLOG(bDebugLog, LogMMGame, Log, TEXT("All Blocks Finished Moving"));
 				GridLockedState = EMMGridLockState::Unchecked;
 				GridState = EMMGridState::Normal;
 			}
@@ -115,7 +115,7 @@ void AMMPlayGrid::Tick(float DeltaSeconds)
 				CheckFlaggedForMatches();
 			}
 			else {
-				UE_LOG(LogMMGame, Log, TEXT("All Blocks Finished Matching"));
+				UE_CLOG(bDebugLog, LogMMGame, Log, TEXT("All Blocks Finished Matching"));
 				GridLockedState = EMMGridLockState::Unchecked;
 				GridState = EMMGridState::Normal;
 			}
@@ -169,7 +169,7 @@ void AMMPlayGrid::SettleTick(float DeltaSeconds)
 		}
 		else {
 			// TODO: Remove this debug
-			UE_LOG(LogMMGame, Log, TEXT("All Blocks Finished Settling"));
+			UE_CLOG(bDebugLog, LogMMGame, Log, TEXT("All Blocks Finished Settling"));
 			GridLockedState = EMMGridLockState::Unchecked;
 			GridState = EMMGridState::Normal;
 		}
@@ -187,7 +187,7 @@ void AMMPlayGrid::BeginPlay()
 {
 	Super::BeginPlay();
 	
-	SpawnGrid();
+	//SpawnGrid();
 	//FillGridBlocks();
 }
 
@@ -285,21 +285,22 @@ void AMMPlayGrid::FillGridBlocks()
 	else {
 		DestroyBlocks();
 	}
+	UE_CLOG(bDebugLog, LogMMGame, Log, TEXT("MMPlayGrid::FillGridBlocks - Filling %d grid blocks [%d x %d]"), Cells.Num(), SizeX, SizeY);
 	AMMPlayGridCell* Cell = nullptr;
 	for (int32 i = 0; i < Cells.Num(); i++)	{
 		AddRandomBlockInCell(Cells[i], 0.f, false, true);
 	}
 	GridLockedState = EMMGridLockState::Unchecked;
-	UE_LOG(LogMMGame, Log, TEXT("MMPlayGrid::FillGridBlocks - Added %d blocks to grid"), Blocks.Num());
+	UE_CLOG(bDebugLog, LogMMGame, Log, TEXT("MMPlayGrid::FillGridBlocks - Added %d blocks to grid"), Blocks.Num());
 }
 
 
 void AMMPlayGrid::DestroyGrid()
 {
+	DestroyBlocks();
 	for (AMMPlayGridCell* Cell : Cells)	{
 		Cell->DestroyCell();
-	}
-	DestroyBlocks();
+	}	
 	Cells.Empty();
 }
 
@@ -385,7 +386,6 @@ AMMBlock* AMMPlayGrid::AddBlockInCell(AMMPlayGridCell* Cell, const FName& BlockT
 			Blocks.Add(NewBlock);
 			NewBlock->SetBlockType(BlockType);
 			NewBlock->bFallingIntoGrid = OffsetAboveCell > 0.f;
-			//NewBlock->Grid();
 			if (bScaleBlocks)
 			{
 				FVector BlockOrigin;
@@ -395,15 +395,6 @@ AMMBlock* AMMPlayGrid::AddBlockInCell(AMMPlayGridCell* Cell, const FName& BlockT
 				if (BlockBoxExtent.X > 0.f) {
 					Rescale.X = (BlockSize.X - (BlockMargin * 2)) / (BlockBoxExtent.X * 2);
 				}
-				//if (BlockBoxExtent.Y > 0.f) {
-				//	// Y axis, the depth away from camera, has no margin applied.
-				//	Rescale.Y = BlockSize.Y / (BlockBoxExtent.Y * 2);
-				//	// World Y is our grid depth.
-				//	// Only scale by Y if scaling down. i.e. don't inflate to fill Y depth.
-				//	if (Rescale.Y > 1.f) {
-				//		Rescale.Y = 1.f;
-				//	}
-				//}
 				if (BlockBoxExtent.Z > 0.f) {
 					Rescale.Z = (BlockSize.Z - (BlockMargin * 2)) / (BlockBoxExtent.Z * 2);
 				}
@@ -463,12 +454,12 @@ AMMBlock* AMMPlayGrid::AddRandomBlockInCellEx(AMMPlayGridCell* Cell, const TArra
 			{
 				if (bPreventMatches && !NewBlock->bFallingIntoGrid)
 				{
-					UE_LOG(LogMMGame, Log, TEXT("Checking new block for matches %s"), *NewBlock->GetCoords().ToString());
+					UE_CLOG(bDebugLog, LogMMGame, Log, TEXT("Checking new block for matches %s"), *NewBlock->GetCoords().ToString());
 					UBlockMatch* BlockMatchHoriz = nullptr;
 					UBlockMatch* BlockMatchVert = nullptr;
 					if (CheckForMatches(NewBlock, &BlockMatchHoriz, &BlockMatchVert, false))
 					{
-						UE_LOG(LogMMGame, Log, TEXT("   New block matches"));
+						UE_CLOG(bDebugLog, LogMMGame, Log, TEXT("   New block matches"));
 						Blocks.RemoveSingle(NewBlock);
 						BlocksToCheck.RemoveSingle(NewBlock);
 						ToBeUnsettledBlocks.RemoveSingle(NewBlock);
@@ -477,7 +468,7 @@ AMMBlock* AMMPlayGrid::AddRandomBlockInCellEx(AMMPlayGridCell* Cell, const TArra
 						bTryAgain = true;
 						NewBlock = nullptr;
 						if (Tries == MaxTries) {
-							UE_LOG(LogMMGame, Warning, TEXT("MMPlayGrid::AddRandomBlockInCell - Exceeded max tries to find an unmatching block type in cell %s"), *Cell->GetCoords().ToString());
+							UE_CLOG(bDebugLog, LogMMGame, Warning, TEXT("MMPlayGrid::AddRandomBlockInCell - Exceeded max tries to find an unmatching block type in cell %s"), *Cell->GetCoords().ToString());
 						}
 					}
 					else 
@@ -628,18 +619,14 @@ AMMBlock* AMMPlayGrid::GetBlock(const FIntPoint& Coords)
 
 FVector AMMPlayGrid::GridCoordsToWorldLocation(const FIntPoint& GridCoords)
 {
-	float BlockSpacingX = BlockSize.X + CellBackgroundMargin;
-	float BlockSpacingY = BlockSize.Z + CellBackgroundMargin; // the grid's Y axis is actually world Z;
-	float XOffset = (GridCoords.X * BlockSpacingX) + (BlockSpacingX / 2.f);
-	float YOffset = (GridCoords.Y * BlockSpacingY) + (BlockSpacingY / 2.f);
-	return GetActorTransform().TransformPosition(FVector(XOffset, 0.f, YOffset)); 
+	return GetActorTransform().TransformPosition(GridCoordsToLocalLocation(GridCoords)); 
 }
 
 FVector AMMPlayGrid::GridCoordsToLocalLocation(const FIntPoint& GridCoords)
 {
 	float BlockSpacingX = BlockSize.X + CellBackgroundMargin;
-	float BlockSpacingY = BlockSize.Z + CellBackgroundMargin; // the grid's Y axis is actually local Z;
-	float XOffset = (GridCoords.X * BlockSpacingX) + (BlockSpacingX / 2.f);
+	float BlockSpacingY = BlockSize.Z + CellBackgroundMargin; // the grid's Y axis is actually world Z;
+	float XOffset = ((GridCoords.X * BlockSpacingX) + (BlockSpacingX / 2.f)) - (((BlockSpacingX * SizeX) + CellBackgroundMargin) / 2.f);
 	float YOffset = (GridCoords.Y * BlockSpacingY) + (BlockSpacingY / 2.f);
 	return FVector(XOffset, 0.f, YOffset); 
 }
@@ -655,6 +642,18 @@ FVector AMMPlayGrid::GridFloatCoordsToWorldLocation(const FVector2D& GridCoords)
 		FVector LocTwo = GridCoordsToWorldLocation(FIntPoint(FMath::CeilToInt(GridCoords.X), FMath::CeilToInt(GridCoords.Y)));
 		return (LocOne + LocTwo) / 2.f;
 	}
+}
+
+
+FBoxSphereBounds AMMPlayGrid::GetVisibleGridBounds()
+{
+	FBoxSphereBounds VisBounds;
+	VisBounds.BoxExtent.X = (((float)BlockSize.X + CellBackgroundMargin) * (float)SizeX) / 2.f;
+	VisBounds.BoxExtent.Z = (((float)BlockSize.Z + CellBackgroundMargin) * (float)SizeY) / 2.f;
+	VisBounds.BoxExtent.Y = (CellBackgroundOffset + BlockSize.Y) / 2.f;
+	VisBounds.SphereRadius = VisBounds.BoxExtent.Size();
+	VisBounds.Origin = FVector(0.f, -VisBounds.BoxExtent.Y, VisBounds.BoxExtent.Z);
+	return VisBounds.TransformBy(GetActorTransform());
 }
 
 
@@ -686,8 +685,7 @@ void AMMPlayGrid::BlockClicked(AMMBlock* Block)
 				SelectedBlock->Cell()->Highlight(false);
 				SelectedBlock = nullptr;
 			}
-			else 
-			{
+			else {
 				SelectedBlock = SelectedCell->CurrentBlock;
 			}
 		}
@@ -745,7 +743,7 @@ bool AMMPlayGrid::MoveBlock(AMMBlock* MovingBlock, AMMPlayGridCell* ToCell)
 	if (MovingBlock == nullptr || ToCell == nullptr || MovingBlock->OwningGridCell == nullptr) {
 		return false;
 	}
-	UE_LOG(LogMMGame, Log, TEXT("MoveBlock %s from %s to %s"), *MovingBlock->GetName(), *MovingBlock->Cell()->GetCoords().ToString(), *ToCell->GetCoords().ToString());
+	UE_CLOG(bDebugLog, LogMMGame, Log, TEXT("MoveBlock %s from %s to %s"), *MovingBlock->GetName(), *MovingBlock->Cell()->GetCoords().ToString(), *ToCell->GetCoords().ToString());
 	TArray<UBlockMatch*> CurrentMatches;
 	AMMPlayGridCell* FromCell = MovingBlock->Cell();
 	AMMBlock* SwappingBlock = ToCell->CurrentBlock;
@@ -759,10 +757,10 @@ bool AMMPlayGrid::MoveBlock(AMMBlock* MovingBlock, AMMPlayGridCell* ToCell)
 		return false;
 	}
 	if (SwappingBlock) {
-		UE_LOG(LogMMGame, Log, TEXT("  MoveBlock swapping blocks with %s"), *SwappingBlock->GetName());
+		UE_CLOG(bDebugLog, LogMMGame, Log, TEXT("  MoveBlock swapping blocks with %s"), *SwappingBlock->GetName());
 	}
 	else {
-		UE_LOG(LogMMGame, Log, TEXT("  MoveBlock moving block"));
+		UE_CLOG(bDebugLog, LogMMGame, Log, TEXT("  MoveBlock moving block"));
 	}
 	// Set grid state
 	GridState = EMMGridState::Moving;
@@ -800,7 +798,7 @@ bool AMMPlayGrid::MoveBlock(AMMBlock* MovingBlock, AMMPlayGridCell* ToCell)
 	}
 	if (CurrentMatches.Num() == 0)
 	{
-		UE_LOG(LogMMGame, Log, TEXT("  MoveBlock %s no matches for move to %s"), *MovingBlock->GetName(), *ToCell->GetCoords().ToString());
+		UE_CLOG(bDebugLog, LogMMGame, Log, TEXT("  MoveBlock %s no matches for move to %s"), *MovingBlock->GetName(), *ToCell->GetCoords().ToString());
 		// No matches, swap the blocks back to orignal spots
 		PlaySoundQueue.AddUnique(MoveFailSound.Get());
 		FromCell->CurrentBlock = MovingBlock;
@@ -817,7 +815,7 @@ bool AMMPlayGrid::MoveBlock(AMMBlock* MovingBlock, AMMPlayGridCell* ToCell)
 	}
 	else
 	{
-		UE_LOG(LogMMGame, Log, TEXT("  MoveBlock %s blocke moved to to %s"), *MovingBlock->GetName(), *ToCell->GetCoords().ToString());
+		UE_CLOG(bDebugLog, LogMMGame, Log, TEXT("  MoveBlock %s block moved to to %s"), *MovingBlock->GetName(), *ToCell->GetCoords().ToString());
 		GridLockedState = EMMGridLockState::Unchecked;
 		MovingBlock->bMovedByPlayer = true;
 		UnsettledBlocks.AddUnique(MovingBlock);
@@ -850,12 +848,12 @@ bool AMMPlayGrid::BlockMoveHasMatch(const AMMBlock* CheckBlock, const EMMDirecti
 	}
 	if (CheckBlock->OwningGridCell == nullptr) {
 		if (CheckBlock->Cell()) {
-			UE_LOG(LogMMGame, Warning, TEXT("    BlockMoveHasMatch found block %s at %s that has no owning grid cell. Returning false."), *CheckBlock->GetName(), *CheckBlock->Cell()->GetCoords().ToString());
+			UE_CLOG(bDebugLog, LogMMGame, Warning, TEXT("    BlockMoveHasMatch found block %s at %s that has no owning grid cell. Returning false."), *CheckBlock->GetName(), *CheckBlock->Cell()->GetCoords().ToString());
 		}
 		return false;
 	}
 	if (CheckBlock->OwningGridCell->CurrentBlock != CheckBlock) {
-		UE_LOG(LogMMGame, Warning, TEXT("    BlockMoveHasMatch found block %s at %s who's owning cell's current block is not this block. It is block %s"), *CheckBlock->GetName(), *CheckBlock->OwningGridCell->GetCoords().ToString(), *CheckBlock->OwningGridCell->CurrentBlock->GetName());
+		UE_CLOG(bDebugLog, LogMMGame, Warning, TEXT("    BlockMoveHasMatch found block %s at %s who's owning cell's current block is not this block. It is block %s"), *CheckBlock->GetName(), *CheckBlock->OwningGridCell->GetCoords().ToString(), *CheckBlock->OwningGridCell->CurrentBlock->GetName());
 		return false;
 	}
 	FIntPoint NeighborCoords = CheckBlock->OwningGridCell->GetCoords() + UMMMath::DirectionToOffset(DirectionToCheck);
@@ -863,20 +861,20 @@ bool AMMPlayGrid::BlockMoveHasMatch(const AMMBlock* CheckBlock, const EMMDirecti
 	if (ToCell == nullptr) {
 		return false;
 	}
-	UE_LOG(LogMMGame, Log, TEXT("    BlockMoveHasMatch checking %s at %s to %s"), *CheckBlock->GetName(), *CheckBlock->OwningGridCell->GetCoords().ToString(), *ToCell->GetCoords().ToString());
+	UE_CLOG(bDebugLog, LogMMGame, Log, TEXT("    BlockMoveHasMatch checking %s at %s to %s"), *CheckBlock->GetName(), *CheckBlock->OwningGridCell->GetCoords().ToString(), *ToCell->GetCoords().ToString());
 	bool bFoundMatch = false;
 	AMMPlayGridCell* FromCell = CheckBlock->OwningGridCell;
 	AMMBlock* SwappingBlock = ToCell->CurrentBlock;
 	if (SwappingBlock && SwappingBlock->OwningGridCell == nullptr) {
-		UE_LOG(LogMMGame, Log, TEXT("   BlockMoveHasMatch found swapping block %s at %s that has no owning grid cell. Returning false."), *SwappingBlock->GetName(), *SwappingBlock->GetCoords().ToString());
+		UE_CLOG(bDebugLog, LogMMGame, Log, TEXT("   BlockMoveHasMatch found swapping block %s at %s that has no owning grid cell. Returning false."), *SwappingBlock->GetName(), *SwappingBlock->GetCoords().ToString());
 		return false;
 	}
 	if (!CheckBlock->CanMove() || (SwappingBlock != nullptr && !SwappingBlock->CanMove())) {
-		UE_LOG(LogMMGame, Log, TEXT("   BlockMoveHasMatch found immobile block. Returning False."));
+		UE_CLOG(bDebugLog, LogMMGame, Log, TEXT("   BlockMoveHasMatch found immobile block. Returning False."));
 		return false;
 	}
 	if (!UMMMath::CoordsAdjacent(FromCell->GetCoords(), ToCell->GetCoords())) {
-		UE_LOG(LogMMGame, Log, TEXT("   BlockMoveHasMatch coords %s and %s not adjacent. Returning False."), *FromCell->GetCoords().ToString(), *ToCell->GetCoords().ToString());
+		UE_CLOG(bDebugLog, LogMMGame, Log, TEXT("   BlockMoveHasMatch coords %s and %s not adjacent. Returning False."), *FromCell->GetCoords().ToString(), *ToCell->GetCoords().ToString());
 		return false;
 	}
 	// Get non-const block ref so we can temporarily move it.
@@ -905,22 +903,6 @@ bool AMMPlayGrid::BlockMoveHasMatch(const AMMBlock* CheckBlock, const EMMDirecti
 	else {
 		TmpBlockMatch = nullptr;
 	}
-	// Check swapping block
-	/*if (SwappingBlock)
-	{
-		if (!bFoundMatch && MatchHorizontal(SwappingBlock, &TmpBlockMatch, false) >= MinMatchSize) {
-			bFoundMatch = true;
-		}
-		else {
-			TmpBlockMatch = nullptr;
-		}
-		if (!bFoundMatch && MatchVertical(SwappingBlock, &TmpBlockMatch, false) >= MinMatchSize) {
-			bFoundMatch = true;
-		}
-		else {
-			TmpBlockMatch = nullptr;
-		}
-	}*/
 	// Swap the blocks back to original spots after checking
 	FromCell->CurrentBlock = MoveBlock;
 	MoveBlock->OwningGridCell = FromCell;
@@ -932,10 +914,10 @@ bool AMMPlayGrid::BlockMoveHasMatch(const AMMBlock* CheckBlock, const EMMDirecti
 	}
 	if (bFoundMatch){
 		if (TmpBlockMatch) {
-			UE_LOG(LogMMGame, Log, TEXT("    BlockMoveHasMatch found match of %d blocks"), TmpBlockMatch->Blocks.Num());
+			UE_CLOG(bDebugLog, LogMMGame, Log, TEXT("    BlockMoveHasMatch found match of %d blocks"), TmpBlockMatch->Blocks.Num());
 		}
 		else {
-			UE_LOG(LogMMGame, Log, TEXT("    BlockMoveHasMatch found match: block at %s matches block at %s"), *FromCell->GetCoords().ToString(), *ToCell->GetCoords().ToString());
+			UE_CLOG(bDebugLog, LogMMGame, Log, TEXT("    BlockMoveHasMatch found match: block at %s matches block at %s"), *FromCell->GetCoords().ToString(), *ToCell->GetCoords().ToString());
 		}
 	}
 	return bFoundMatch;
@@ -944,7 +926,7 @@ bool AMMPlayGrid::BlockMoveHasMatch(const AMMBlock* CheckBlock, const EMMDirecti
 
 bool AMMPlayGrid::BlockHasMatchingMove(const AMMBlock* CheckBlock, AMMPlayGridCell** MatchMoveDestination)
 {
-	UE_LOG(LogMMGame, Log, TEXT("  BlockHasMatchingMove checking block %s at %s"), *CheckBlock->GetName(), *CheckBlock->GetCoords().ToString());
+	UE_CLOG(bDebugLog, LogMMGame, Log, TEXT("  BlockHasMatchingMove checking block %s at %s"), *CheckBlock->GetName(), *CheckBlock->GetCoords().ToString());
 	for (EMMDirection CurDirection : UMMMath::OrthogonalDirections)
 	{
 		if (BlockMoveHasMatch(CheckBlock, CurDirection))
@@ -955,7 +937,7 @@ bool AMMPlayGrid::BlockHasMatchingMove(const AMMBlock* CheckBlock, AMMPlayGridCe
 			return true;
 		}
 	}
-	UE_LOG(LogMMGame, Log, TEXT("  BlockHasMatchingMove no match for block %s at %s"), *CheckBlock->GetName(), *CheckBlock->GetCoords().ToString());
+	UE_CLOG(bDebugLog, LogMMGame, Log, TEXT("  BlockHasMatchingMove no match for block %s at %s"), *CheckBlock->GetName(), *CheckBlock->GetCoords().ToString());
 	return false;
 }
 
@@ -999,7 +981,7 @@ bool AMMPlayGrid::CheckForMatches(AMMBlock* CheckBlock, UBlockMatch** HorizMatch
 	if (CheckBlock == nullptr) {
 		return false;
 	}
-	//UE_LOG(LogMMGame, Log, TEXT("MMPlayGrid::CheckForMatches - ######### Checking block %s at %s"), *CheckBlock->GetName(), *CheckBlock->GetCoords().ToString());
+	UE_CLOG(bDebugLog, LogMMGame, Log, TEXT("MMPlayGrid::CheckForMatches - Checking block %s at %s"), *CheckBlock->GetName(), *CheckBlock->GetCoords().ToString());
 	if (!CheckBlock->bMatchedHorizontal) {
 		MatchHorizontal(CheckBlock, HorizMatchPtr, bMarkBlocks);
 	}
@@ -1026,7 +1008,7 @@ int32 AMMPlayGrid::MatchHorizontal(UPARAM(ref) AMMBlock* StartBlock, UBlockMatch
 				}
 				(*MatchPtr)->Sort();
 			}
-			UE_LOG(LogMMGame, Log, TEXT("    MMPlayGrid::MatchHorizontal - Found full match for block %s at %s match has %d blocks"), *StartBlock->GetName(), *StartBlock->GetCoords().ToString(), (*MatchPtr)->Blocks.Num());
+			UE_CLOG(bDebugLog, LogMMGame, Log, TEXT("    MMPlayGrid::MatchHorizontal - Found full match for block %s at %s match has %d blocks"), *StartBlock->GetName(), *StartBlock->GetCoords().ToString(), (*MatchPtr)->Blocks.Num());
 		}
 		else {
 			(*MatchPtr)->Reset();
@@ -1053,7 +1035,7 @@ int32 AMMPlayGrid::MatchVertical(UPARAM(ref) AMMBlock* StartBlock, UBlockMatch**
 				}
 				(*MatchPtr)->Sort();
 			}
-			UE_LOG(LogMMGame, Log, TEXT("    MMPlayGrid::MatchVertical - Found full match for block %s at %s match has %d blocks"), *StartBlock->GetName(), *StartBlock->GetCoords().ToString(), (*MatchPtr)->Blocks.Num());
+			UE_CLOG(bDebugLog, LogMMGame, Log, TEXT("    MMPlayGrid::MatchVertical - Found full match for block %s at %s match has %d blocks"), *StartBlock->GetName(), *StartBlock->GetCoords().ToString(), (*MatchPtr)->Blocks.Num());
 		}
 		else {
 			(*MatchPtr)->Reset();
@@ -1073,17 +1055,12 @@ int32 AMMPlayGrid::MatchDirection(AMMBlock* StartBlock, const EMMDirection Direc
 			UE_LOG(LogMMGame, Error, TEXT("    MMPlayGrid::MatchDirection - Cell at start coords: %s has different block %s than start block %s"), *(StartBlock->Cell()->GetCoords()).ToString(), *StartBlock->Cell()->CurrentBlock->GetName(), *StartBlock->GetName());
 		}
 		if (StartBlock->OwningGridCell == nullptr) {
-			UE_LOG(LogMMGame, Warning, TEXT("    MMPlayGrid::MatchDirection - Attempting match with block %s at %s that does not own it's cell"), *StartBlock->GetName(), *StartBlock->GetCoords().ToString());
+			UE_CLOG(bDebugLog, LogMMGame, Warning, TEXT("    MMPlayGrid::MatchDirection - Attempting match with block %s at %s that does not own it's cell"), *StartBlock->GetName(), *StartBlock->GetCoords().ToString());
 		}
-		//if (*MatchPtr) {
-		//	UE_LOG(LogMMGame, Log, TEXT("  MMPlayGrid::MatchDirection - Matches: %d direction coords %s"), (*MatchPtr)->Blocks.Num(), *UMMMath::DirectionToOffset(Direction).ToString());
-		//}
-		//UE_LOG(LogMMGame, Log, TEXT("    MMPlayGrid::MatchDirection - Matching starting block at %s"), *StartBlock->GetCoords().ToString());
 		FIntPoint NeighborCoords = StartBlock->GetCoords() + UMMMath::DirectionToOffset(Direction);
 		AMMPlayGridCell* NeighborCell = GetCell(NeighborCoords);
-		//UE_LOG(LogMMGame, Log, TEXT("  MMPlayGrid::MatchDirection - Neighbor coords: %s"), *NeighborCoords.ToString());
 		if (NeighborCell) {
-			UE_LOG(LogMMGame, Log, TEXT("    MMPlayGrid::MatchDirection - Matching starting block %s at %s with cell at %s"), *StartBlock->GetName(), *StartBlock->GetCoords().ToString(), *NeighborCoords.ToString());
+			UE_CLOG(bDebugLog, LogMMGame, Log, TEXT("    MMPlayGrid::MatchDirection - Matching starting block %s at %s with cell at %s"), *StartBlock->GetName(), *StartBlock->GetCoords().ToString(), *NeighborCoords.ToString());
 		}
 		if (NeighborCell && IsValid(NeighborCell->CurrentBlock))
 		{
@@ -1123,7 +1100,7 @@ int32 AMMPlayGrid::MatchDirection(AMMBlock* StartBlock, const EMMDirection Direc
 						// They didn't match.
 						// If the match is already large enough, stop matching and return as normal
 						if ((*MatchPtr)->Blocks.Num() >= GetMinimumMatchSize()) {
-							UE_LOG(LogMMGame, Log, TEXT("    MMPlayGrid::MatchDirection - Found match for block %s at %s match has %d blocks"), *StartBlock->GetName(), *StartBlock->GetCoords().ToString(), (*MatchPtr)->Blocks.Num());
+							UE_CLOG(bDebugLog, LogMMGame, Log, TEXT("    MMPlayGrid::MatchDirection - Found match for block %s at %s match has %d blocks"), *StartBlock->GetName(), *StartBlock->GetCoords().ToString(), (*MatchPtr)->Blocks.Num());
 							return (*MatchPtr)->Blocks.Num();
 						}
 						// Otherwise, clear the match
@@ -1160,7 +1137,7 @@ int32 AMMPlayGrid::MatchDirection(AMMBlock* StartBlock, const EMMDirection Direc
 		}
 	}
 	if (MatchPtr != nullptr && *MatchPtr != nullptr) {
-		UE_LOG(LogMMGame, Log, TEXT("    MMPlayGrid::MatchDirection - Found match for block %s at %s match has %d blocks"), *StartBlock->GetName(), *StartBlock->GetCoords().ToString(), (*MatchPtr)->Blocks.Num());
+		UE_CLOG(bDebugLog, LogMMGame, Log, TEXT("    MMPlayGrid::MatchDirection - Found match for block %s at %s match has %d blocks"), *StartBlock->GetName(), *StartBlock->GetCoords().ToString(), (*MatchPtr)->Blocks.Num());
 		return (*MatchPtr)->Blocks.Num();
 	}
 	else {
@@ -1194,7 +1171,7 @@ void AMMPlayGrid::SortMatches(/*const bool bForceSort*/ )
 	}
 	BlockMatches.Empty(TmpMatches.Num());
 	BlockMatches.Append(TmpMatches);
-	UE_LOG(LogMMGame, Log, TEXT("MMPlayGrid::SortMatches - Sorted %d matches"), BlockMatches.Num());
+	UE_CLOG(bDebugLog, LogMMGame, Log, TEXT("MMPlayGrid::SortMatches - Sorted %d matches"), BlockMatches.Num());
 }
 
 
@@ -1221,11 +1198,6 @@ bool AMMPlayGrid::ResolveMatches()
 		CurMatch->TotalScore = TotalScoreToAdd;
 		for (AMMBlock* CurBlock : CurMatch->Blocks)
 		{
-			//if (CurBlock->Cell() && CurBlock->Cell()->CurrentBlock == CurBlock) 
-			//{
-			//	CurBlock->Cell()->CurrentBlock = nullptr;
-			//	CellBecameOpen(CurBlock->Cell());
-			//}
 			CurBlock->OnMatched(CurMatch);
 			PlaySoundQueue.AddUnique(CurBlock->MatchSound.Get());			
 		}		
@@ -1307,7 +1279,7 @@ EMMGridLockState AMMPlayGrid::CheckGridIsLocked()
 		GridLockCheckCoords = FIntPoint::ZeroValue;
 		GridLockedState = EMMGridLockState::Checking;
 	}
-	UE_LOG(LogMMGame, Log, TEXT("CheckGridIsLocked"));
+	UE_CLOG(bDebugLog, LogMMGame, Log, TEXT("CheckGridIsLocked checking"));
 	for (int32 i = 0; i < GridLockChecksPerTick; i++)
 	{
 		// Check current GridLockCheckCoords
@@ -1338,6 +1310,7 @@ EMMGridLockState AMMPlayGrid::CheckGridIsLocked()
 			GridLockCheckCoords.X++;
 		}
 	}
+	UE_CLOG(bDebugLog, LogMMGame, Log, TEXT("CheckGridIsLocked %s"), GridLockedState == EMMGridLockState::Locked ? TEXT("Locked") : TEXT("Not Locked"));
 	return GridLockedState;
 }
 
@@ -1449,11 +1422,6 @@ void AMMPlayGrid::BlockFinishedMatch(AMMBlock* Block, UBlockMatch* Match)
 		Block->OwningGridCell->CurrentBlock = nullptr;
 		//CellBecameOpen(Block->OwningGridCell);
 	}
-	//if (Block->SettleToGridCell && Block->SettleToGridCell->CurrentBlock == Block) 
-	//{
-	//	Block->SettleToGridCell->CurrentBlock = nullptr;
-	//	CellBecameOpen(Block->SettleToGridCell);
-	//}
 	for (AMMBlock* CurBlock : Match->Blocks)
 	{
 		if (!CurBlock->IsMatchFinished(Match))
@@ -1501,24 +1469,12 @@ void AMMPlayGrid::AllMatchesFinished()
 				AMMPlayGridCell* UnsettleAboveCell = nullptr;
 				if (CurBlock->Cell() != nullptr)
 				{
-					//if (CurBlock->OwningGridCell && CurBlock->OwningGridCell->CurrentBlock == CurBlock) {
-					//	CurBlock->OwningGridCell->CurrentBlock = nullptr;
-					//	CellBecameOpen(CurBlock->OwningGridCell);
-					//}
-					//if (CurBlock->SettleToGridCell && CurBlock->SettleToGridCell->CurrentBlock == CurBlock) {
-					//	CurBlock->SettleToGridCell->CurrentBlock = nullptr;
-					//	CellBecameOpen(CurBlock->SettleToGridCell);
-					//}
-					
 					if (!IsValid(CurBlock->Cell()->CurrentBlock)) {
 						SpawnCells.AddUnique(CurBlock->Cell());
 					}
 				}
 				Blocks.RemoveSingle(CurBlock);
-				CurBlock->DestroyBlock();
-				//if (UnsettleAboveCell) {		
-				//	UnsettleBlockAboveCell(UnsettleAboveCell);					
-				//}
+				CurBlock->DestroyBlock();				
 			}
 		}
 		BlockMatches[i]->Blocks.Empty();
@@ -1532,7 +1488,8 @@ void AMMPlayGrid::AllMatchesFinished()
 			NewBlock = DropRandomBlockInColumnEx(SpawnCell, ExcludedNames);
 			if (NewBlock && GetMinimumMatchSize() > 2) 
 			{
-				if (ExcludedNames.Num() >= GetMinimumMatchSize() - 1) {
+				if (ExcludedNames.Num() >= GetMinimumMatchSize() - 1) 
+				{
 					ExcludedNames.SwapMemory(0, ExcludedNames.Num() - 1);
 					ExcludedNames.Pop(false);
 				}
@@ -1560,28 +1517,29 @@ void AMMPlayGrid::PlaySounds(const TArray<USoundBase*> Sounds)
 
 bool AMMPlayGrid::DebugBlocks(const FString& ContextString)
 {
+	if (!bDebugLog) { return false; }
 	bool bAnyError = false;
 	if (!ContextString.IsEmpty()) {
-		UE_LOG(LogMMGame, Log, TEXT("DebugBlocks: ####  %s  ###"), *ContextString);
+		UE_CLOG(bDebugLog, LogMMGame, Log, TEXT("DebugBlocks: ####  %s  ###"), *ContextString);
 	}
-	UE_LOG(LogMMGame, Log, TEXT("DebugBlocks: Blocks list has %d blocks"), Blocks.Num());
-	UE_LOG(LogMMGame, Log, TEXT("DebugBlocks: UnsettledBlocks has %d blocks"), UnsettledBlocks.Num());
-	UE_LOG(LogMMGame, Log, TEXT("DebugBlocks: ToBeUnsettledBlocks has %d blocks"), ToBeUnsettledBlocks.Num());
-	UE_LOG(LogMMGame, Log, TEXT("DebugBlocks: BlocksToCheck has %d blocks"), BlocksToCheck.Num());
+	UE_CLOG(bDebugLog, LogMMGame, Log, TEXT("DebugBlocks: Blocks list has %d blocks"), Blocks.Num());
+	UE_CLOG(bDebugLog, LogMMGame, Log, TEXT("DebugBlocks: UnsettledBlocks has %d blocks"), UnsettledBlocks.Num());
+	UE_CLOG(bDebugLog, LogMMGame, Log, TEXT("DebugBlocks: ToBeUnsettledBlocks has %d blocks"), ToBeUnsettledBlocks.Num());
+	UE_CLOG(bDebugLog, LogMMGame, Log, TEXT("DebugBlocks: BlocksToCheck has %d blocks"), BlocksToCheck.Num());
 	for (int32 i = 0; i < BlocksFallingIntoGrid.Num(); i++) {
-		UE_LOG(LogMMGame, Log, TEXT("DebugBlocks: BlocksFallingIntoGrid[%d] has %d blocks"), i, BlocksFallingIntoGrid[i].Blocks.Num());
+		UE_CLOG(bDebugLog, LogMMGame, Log, TEXT("DebugBlocks: BlocksFallingIntoGrid[%d] has %d blocks"), i, BlocksFallingIntoGrid[i].Blocks.Num());
 	}
 	if (BlockMatches.Num() > 0) {
-		UE_LOG(LogMMGame, Log, TEXT("DebugBlocks: BlockMatches has %d matches"), BlockMatches.Num());
+		UE_CLOG(bDebugLog, LogMMGame, Log, TEXT("DebugBlocks: BlockMatches has %d matches"), BlockMatches.Num());
 	}
 	for (AMMBlock* CurBlock : Blocks)
 	{
 		if (CurBlock->Cell() == nullptr) {
-			UE_LOG(LogMMGame, Warning, TEXT("DebugBlocks: Block %s has no cell"), *CurBlock->GetName());
+			UE_CLOG(bDebugLog, LogMMGame, Warning, TEXT("DebugBlocks: Block %s has no cell"), *CurBlock->GetName());
 			bAnyError = true;
 		}
 		else if (CurBlock->Cell()->CurrentBlock == nullptr) {
-			UE_LOG(LogMMGame, Warning, TEXT("DebugBlocks: Block %s at %s grid cell current block is null"), *CurBlock->GetName(), *CurBlock->GetCoords().ToString());
+			UE_CLOG(bDebugLog, LogMMGame, Warning, TEXT("DebugBlocks: Block %s at %s grid cell current block is null"), *CurBlock->GetName(), *CurBlock->GetCoords().ToString());
 			bAnyError = true;
 		}
 		if (CurBlock->OwningGridCell && CurBlock->OwningGridCell->CurrentBlock != CurBlock)
@@ -1596,7 +1554,7 @@ bool AMMPlayGrid::DebugBlocks(const FString& ContextString)
 		}
 		
 		if (CurBlock->BlockState == EMMGridState::Settling && !UnsettledBlocks.Contains(CurBlock)) {
-			UE_LOG(LogMMGame, Warning, TEXT("DebugBlocks: Block %s at %s is settling but not in UnsettledBlocks list"), *CurBlock->GetName(), *CurBlock->GetCoords().ToString());
+			UE_CLOG(bDebugLog, LogMMGame, Warning, TEXT("DebugBlocks: Block %s at %s is settling but not in UnsettledBlocks list"), *CurBlock->GetName(), *CurBlock->GetCoords().ToString());
 			bAnyError = true;
 		}
 		if (CurBlock->BlockState == EMMGridState::Matching)
@@ -1618,7 +1576,7 @@ bool AMMPlayGrid::DebugBlocks(const FString& ContextString)
 	TArray<AActor*> AllBlocks;
 	UGameplayStatics::GetAllActorsOfClass(GetWorld(), AMMBlock::StaticClass(), AllBlocks);
 	if (Blocks.Num() != AllBlocks.Num()) {
-		UE_LOG(LogMMGame, Warning, TEXT("DebugBlocks: %d blocks found in world"), AllBlocks.Num());
+		UE_CLOG(bDebugLog, LogMMGame, Warning, TEXT("DebugBlocks: %d blocks found in world"), AllBlocks.Num());
 	}
 	for (AActor* CurActor : AllBlocks)
 	{
@@ -1627,9 +1585,9 @@ bool AMMPlayGrid::DebugBlocks(const FString& ContextString)
 		{
 			if (!Blocks.Contains(CurBlock))
 			{
-				UE_LOG(LogMMGame, Warning, TEXT("DebugBlocks: Block %s found in world but not in Blocks list"), *CurBlock->GetName());
+				UE_CLOG(bDebugLog, LogMMGame, Warning, TEXT("DebugBlocks: Block %s found in world but not in Blocks list"), *CurBlock->GetName());
 				if (CurBlock->Cell()) {
-					UE_LOG(LogMMGame, Warning, TEXT("    Orphaned block's cell is %s"), *CurBlock->Cell()->GetCoords().ToString());
+					UE_CLOG(bDebugLog, LogMMGame, Warning, TEXT("    Orphaned block's cell is %s"), *CurBlock->Cell()->GetCoords().ToString());
 				}
 			}
 		}

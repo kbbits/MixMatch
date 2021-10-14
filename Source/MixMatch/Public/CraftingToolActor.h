@@ -21,22 +21,39 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
 	TArray<FName> CraftableRecipeCategories;
 
+	/** The AMMPlayGrid class or sub-class, that this tool will spawn. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
 	TSoftClassPtr<class AMMPlayGrid> GridClass;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float ViewFOV = 90.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float ExtraCameraDistance = 0.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float GridMarginH = 0.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float GridMarginV = 0.f;
 
 protected:
 
 	/** A reference to the active recipe manager. Currently this would be a ref to the recipe manager on the player controller. */
+	UPROPERTY(BlueprintGetter=GetRecipeManager)
 	class URecipeManagerComponent* RecipeManager = nullptr;
 
 	/** The current recipe this tool will craft */
-	UPROPERTY()
+	UPROPERTY(BlueprintGetter=GetRecipe)
 	FCraftingRecipe CurrentRecipe;
 
 	/** The grid this tool is working with.
 	 *  TODO: Is this needed?  */
-	UPROPERTY()
+	UPROPERTY(BlueprintReadWrite)
 	class AMMPlayGrid* CurrentGrid;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	bool bDebugLog = true;
 
 private:
 
@@ -55,6 +72,13 @@ public:
 
 	ACraftingToolActor();
 
+	virtual void CalcCamera(float DeltaTime, struct FMinimalViewInfo& OutResult) override;
+
+	/** Returns the location in world space that this till will spawn the grid. 
+	 *  Base class returns actor location. */
+	UFUNCTION(BlueprintNativeEvent)
+	FVector GetGridSpawnLocation();
+
 	/** Set the reference to the recipe manager this tool is using. */
 	UFUNCTION(BlueprintCallable)
 	void SetRecipeManager(UPARAM(ref) class URecipeManagerComponent* NewRecipeManager);
@@ -63,6 +87,9 @@ public:
 	 *  If not set, this will set the recipe manager to the one on the player controller and return it. */
 	UFUNCTION(BlueprintPure)
 	class URecipeManagerComponent* GetRecipeManager();
+
+	UFUNCTION(BlueprintPure)
+	TArray<FCraftingRecipe> GetCraftableRecipes();
 
 	/** Set the recipe this tool will craft. */
 	UFUNCTION(BlueprintCallable)
@@ -106,12 +133,28 @@ public:
 	FName GetDefaultBlockTypeSetName();
 
 	/** Spawns the grid actor. Does not tell the grid to spawn it's cells and related background meshes. */
-	UFUNCTION(BlueprintCallable)
+	UFUNCTION(BlueprintCallable, CallInEditor)
 	void SpawnGrid();
 
+	UFUNCTION(BlueprintCallable, CallInEditor)
+	void SpawnGridBackground();
+		
 	/** Destroys the spawned grid of this tool, if any. */
-	UFUNCTION(BlueprintCallable)
+	UFUNCTION(BlueprintCallable, CallInEditor)
 	void DestroyGrid();
+
+	//### Camera Stuff 
+
+	/** Gets a normalized vector representing the facing of the grid in world space. i.e. the grid's play surface "normal". 
+     *  Intended for placing the camera facing along the opposite of this vector. 
+	 *  Base class return's this actor's forward vector. */
+	UFUNCTION(BlueprintNativeEvent)
+	FVector GetGridFacing();
+
+	/** Gets the bounds of the grid's play area in world space.
+	 *  Intended for placing the camera (considering it's FOV) so these bounds are visible. */
+	UFUNCTION(BlueprintNativeEvent)
+	FBoxSphereBounds GetVisibleGridBounds();
 
 protected:
 

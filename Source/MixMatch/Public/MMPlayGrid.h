@@ -149,8 +149,11 @@ protected:
 	int32 GridLockChecksPerTick = 5;
 
 	/** Inventory for this grid */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
 	class UInventoryActorComponent* GoodsInventory;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	bool bDebugLog = true;
 
 private:
 
@@ -277,6 +280,10 @@ public:
 	/** Translates grid coordinates to world coordinates. Float coordinates allow specifying a location between grid cells. */
 	UFUNCTION(BlueprintPure)
 	FVector GridFloatCoordsToWorldLocation(const FVector2D& GridCoords);
+
+	/** Gets the world-space bounds of the portion of the grid intended to be visible to the player. */
+	UFUNCTION(BlueprintPure)
+	FBoxSphereBounds GetVisibleGridBounds();
 
 	//### Actions 
 

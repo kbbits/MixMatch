@@ -1,11 +1,12 @@
 
 #include "RecipeManagerComponent.h"
 #include "Kismet/GameplayStatics.h"
-#include "..\MixMatch.h"
-#include "MMGameMode.h"
-#include "Goods\GoodsFunctionLibrary.h"
-#include "Goods\GoodsDropper.h"
 #include "GameFramework/PlayerController.h"
+#include "../MixMatch.h"
+#include "MMGameMode.h"
+#include "Goods/Goods.h"
+#include "Goods/GoodsDropper.h"
+
 
 // Sets default values for this component's properties
 URecipeManagerComponent::URecipeManagerComponent()
@@ -53,25 +54,28 @@ FCraftingRecipe URecipeManagerComponent::GetRecipeForGoodsName(const FName& Good
 }
 
 
-TArray<FCraftingRecipe> URecipeManagerComponent::GetRecipesWithCategory(const FName& Category)
+TArray<FCraftingRecipe> URecipeManagerComponent::GetRecipesWithCategory(const FName& Category, const bool bUnlockedRecipesOnly)
 {
 	const TArray<FName> TmpCats = { Category };
-	return GetRecipesWithCategories(TmpCats);
+	return GetRecipesWithCategories(TmpCats, bUnlockedRecipesOnly);
 }
 
 
-TArray<FCraftingRecipe> URecipeManagerComponent::GetRecipesWithCategories(const TArray<FName>& Categories)
+TArray<FCraftingRecipe> URecipeManagerComponent::GetRecipesWithCategories(const TArray<FName>& Categories, const bool bUnlockedRecipesOnly)
 {
 	InitCraftingRecipes();
 	TArray<FCraftingRecipe> FoundRecipes;
 	for (TPair<FName, FCraftingRecipe> It : AllRecipeData)
 	{
-		for (FName CurCategory : Categories)
+		if (!bUnlockedRecipesOnly || IsRecipeUnlocked(It.Key))
 		{
-			if (It.Value.RecipeCategories.Contains(CurCategory)) 
+			for (FName CurCategory : Categories)
 			{
-				FoundRecipes.Add(It.Value);
-				break;
+				if (It.Value.RecipeCategories.Contains(CurCategory))
+				{
+					FoundRecipes.Add(It.Value);
+					break;
+				}
 			}
 		}
 	}
@@ -185,7 +189,7 @@ bool URecipeManagerComponent::GetBaseIngredientsForRecipe(const FName& RecipeNam
 		FGoodsType InputGoodsData = GameMode->GetGoodsData(GoodsInput.Name, bFound);
 		if (bFound)
 		{
-			if (InputGoodsData.GoodsTags.Contains(FName(TEXT("Resource")))) 
+			if (InputGoodsData.GoodsTags.Contains(FGoodsTags::Resource)) 
 			{
 				// Goods tagged as "Resource" are base goods
 				TmpBaseGoods.Add(GoodsInput);

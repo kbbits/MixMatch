@@ -5,5 +5,9 @@
 #include "GoodsDropChance.h"
 #include "GoodsDropSet.h"
 #include "GoodsFunctionLibrary.h"
-#include "Goods.generated.h"
+//#include "Goods.generated.h"
 
+struct FGoodsTags
+{
+	static const FName Resource;
+};
