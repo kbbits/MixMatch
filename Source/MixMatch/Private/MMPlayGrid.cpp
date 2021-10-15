@@ -179,6 +179,7 @@ void AMMPlayGrid::SettleTick(float DeltaSeconds)
 
 void AMMPlayGrid::StartPlayGrid_Implementation()
 {
+	PlayerMovesCount = 0;
 	FillGridBlocks();
 }
 
@@ -680,7 +681,7 @@ void AMMPlayGrid::BlockClicked(AMMBlock* Block)
 			AMMPlayGridCell* SelectedCell = SelectedBlock->Cell();
 			if (MoveBlock(SelectedBlock, Block->Cell()))
 			{
-				PlayerMovesCount++;
+				//PlayerMovesCount++;
 				Block->Cell()->Highlight(false);
 				SelectedBlock->Cell()->Highlight(false);
 				SelectedBlock = nullptr;
@@ -716,7 +717,7 @@ void AMMPlayGrid::CellClicked(AMMPlayGridCell* Cell)
 			AMMPlayGridCell* SelectedCell = SelectedBlock->Cell();
 			if (MoveBlock(SelectedBlock, Cell))
 			{
-				PlayerMovesCount++;
+				//PlayerMovesCount++;
 				Cell->Highlight(false);
 				SelectedCell->Highlight(false);
 				SelectedBlock = nullptr;
@@ -741,6 +742,9 @@ void AMMPlayGrid::OnFingerPressedToggleBlocks(ETouchIndex::Type FingerIndex, UPr
 bool AMMPlayGrid::MoveBlock(AMMBlock* MovingBlock, AMMPlayGridCell* ToCell)
 {
 	if (MovingBlock == nullptr || ToCell == nullptr || MovingBlock->OwningGridCell == nullptr) {
+		return false;
+	}
+	if (MaxPlayerMovesCount > 0 && PlayerMovesCount > MaxPlayerMovesCount) {
 		return false;
 	}
 	UE_CLOG(bDebugLog, LogMMGame, Log, TEXT("MoveBlock %s from %s to %s"), *MovingBlock->GetName(), *MovingBlock->Cell()->GetCoords().ToString(), *ToCell->GetCoords().ToString());
@@ -833,6 +837,10 @@ bool AMMPlayGrid::MoveBlock(AMMBlock* MovingBlock, AMMPlayGridCell* ToCell)
 		}
 		BlockMatches.Append(CurrentMatches);
 		SortMatches();
+		PlayerMovesCount++;
+		if (MaxPlayerMovesCount > 0 && PlayerMovesCount >= MaxPlayerMovesCount) {
+			OnMaxPlayerMoves.Broadcast(this);
+		}
 		bAllMatchesFinished = false;
 	}
 	// TODO: Remove this debug

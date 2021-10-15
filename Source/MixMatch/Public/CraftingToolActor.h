@@ -104,6 +104,11 @@ public:
 	UFUNCTION(BlueprintNativeEvent)
 	TSubclassOf<class AMMPlayGridCell> GetCellClass();
 
+	/** If this returns a value > 0, then this will set the grid's maximum player moves that should be allowed for the next play-through of the grid. 
+	 *  Base class just returns 20. */
+	UFUNCTION(BlueprintNativeEvent)
+	int32 GetMaxPlayerMoves();
+
 	/** The target number of different block types for the tool. 
 	 *   Base class just returns 5.  */
 	UFUNCTION(BlueprintNativeEvent)
@@ -159,7 +164,7 @@ public:
 protected:
 
 	/** Base class does nothing (for now) */
-	UFUNCTION(BlueprintNativeEvent)
+	UFUNCTION(BlueprintCallable, BlueprintNativeEvent)
 	void HandleClick();
 
 	/** Handle the tool being clicked. Calls HandleClick. */

@@ -21,6 +21,7 @@ void UBlockMatch::Sort(const bool bForceSort)
 	FIntPoint MinY = FIntPoint(-1, -1);
 	int32 MatchSize = Blocks.Num();
 	TArray<AMMBlock*> TmpBlocks;
+	TArray<AMMBlock*> SortedBlocks;
 	int32 StartIndex = -1;
 	for (AMMBlock* Block : Blocks)
 	{
@@ -38,23 +39,19 @@ void UBlockMatch::Sort(const bool bForceSort)
 	}
 	StartCoords = Orientation == EMMOrientation::Horizontal ? MinX : MinY;
 	EndCoords = Orientation == EMMOrientation::Horizontal ? StartCoords + FIntPoint(MatchSize - 1, 0) : StartCoords + FIntPoint(0, MatchSize - 1);
-	TmpBlocks.Empty();
-	TmpBlocks.SetNum(Blocks.Num());
-	for (int32 i = 0; i < Blocks.Num(); i++)
+	TmpBlocks = Blocks;
+	SortedBlocks.SetNum(TmpBlocks.Num());
+	for (int32 i = 0; i < TmpBlocks.Num(); i++)
 	{
 		if (Orientation == EMMOrientation::Horizontal) {
-			TmpBlocks[Blocks[i]->GetCoords().X - MinX.X] = Blocks[i];
+			SortedBlocks[TmpBlocks[i]->GetCoords().X - MinX.X] = TmpBlocks[i];
 		}
 		else {
-			TmpBlocks[Blocks[i]->GetCoords().Y - MinY.Y] = Blocks[i];
+			SortedBlocks[TmpBlocks[i]->GetCoords().Y - MinY.Y] = TmpBlocks[i];
 		}
-
-	}
-	if (TmpBlocks.Num() > Blocks.Num()) {
-		UE_LOG(LogMMGame, Log, TEXT("BlockMatch::Sort - TmpBlocks length %d"), TmpBlocks.Num());
 	}
 	Blocks.Empty();
-	for (AMMBlock* TmpBlock : TmpBlocks) {
+	for (AMMBlock* TmpBlock : SortedBlocks) {
 		if (TmpBlock) {
 			Blocks.Add(TmpBlock);
 		}

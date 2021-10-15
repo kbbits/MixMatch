@@ -41,9 +41,28 @@ void AMMPlayerController::SetCurrentGrid(AMMPlayGrid* NewCurrentGrid)
 }
 
 
+void AMMPlayerController::ClearCurrentGrid()
+{
+	CurrentGrid = nullptr;
+	OnCurrentGridChanged.Broadcast(nullptr);
+}
+
+
 AMMPlayGrid* AMMPlayerController::GetCurrentGrid()
 {
 	return CurrentGrid;
+}
+
+
+AMMPlayGrid* AMMPlayerController::GetCurrentGridValid(bool& bIsValid)
+{
+	if (IsValid(GetCurrentGrid())) {
+		bIsValid = true;
+	} 
+	else {
+		bIsValid = false;
+	}
+	return GetCurrentGrid();
 }
 
 

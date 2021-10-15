@@ -82,7 +82,7 @@ int32 ARecipePlayGrid::GetRecipeLevel()
 float ARecipePlayGrid::GetChanceForIngredientBlock_Implementation()
 {
 	if (bIngredientsFromInventory && (IngredientBlockDropOdds.Num() == 0 || GoodsInventory->IsEmpty())) return 0.f;
-	float NormalPercent = 1.f / FMath::Max(1.f, (float)(TargetBlockTypes - GetRecipe().CraftingInputs.Num()));
+	float NormalPercent = FMath::TruncToFloat(1.f / FMath::Max(1.f, (float)(TargetBlockTypes - GetRecipe().CraftingInputs.Num())));
 	float MaxPercent = NormalPercent + ((1 - NormalPercent) * 0.25f);
 	return FMath::Min(((float)GetRecipeLevel() * 0.005f) + NormalPercent, MaxPercent);
 }
@@ -104,7 +104,6 @@ bool ARecipePlayGrid::GetRandomBlockTypeNameForCellEx_Implementation(const AMMPl
 	if (FMath::FRand() < GetChanceForIngredientBlock())
 	{
 		// Determine which ingredient goods are not excluded
-		TArray<FGoodsQuantity> GoodsOdds;
 		TArray<FGoodsQuantity> AllowedInputs;
 		// Iterate through the cached block drop odds for the grid's recipe
 		for (int32 i = 0; i < IngredientBlockDropOdds.Num(); i++)
@@ -120,27 +119,32 @@ bool ARecipePlayGrid::GetRandomBlockTypeNameForCellEx_Implementation(const AMMPl
 			if (AllowedInputs.Num() == 0) {
 				AllowedInputs.Add(IngredientBlockDropOdds[FMath::RandRange(0, IngredientBlockDropOdds.Num() - 1)]);
 			}
-			
-			// Pick from our weighted list of GoodsOods
+
 			float TotalWeight = 0.f;
-			for (FGoodsQuantity IngredientGoods : AllowedInputs)
-			{
-				TotalWeight += IngredientGoods.Quantity;
+			if (AllowedInputs.Num() == 1) {
+				FoundBlockTypeName = AllowedInputs[0].Name;
 			}
-			float WeightSum = 0.f;
-			float PickedWeight = FMath::RandRange(0.f, TotalWeight);
-			for (FGoodsQuantity IngredientGoods : AllowedInputs)
-			{
-				WeightSum += IngredientGoods.Quantity;
-				if (WeightSum >= PickedWeight)
+			else {
+				// Pick from our weighted list of GoodsOods
+				for (FGoodsQuantity IngredientGoods : AllowedInputs)
 				{
-					FoundBlockTypeName = IngredientGoods.Name;
-					break;
+					TotalWeight += IngredientGoods.Quantity;
+				}
+				float WeightSum = 0.f;
+				float PickedWeight = FMath::RandRange(0.f, TotalWeight);
+				for (FGoodsQuantity IngredientGoods : AllowedInputs)
+				{
+					WeightSum += IngredientGoods.Quantity;
+					if (WeightSum >= PickedWeight)
+					{
+						FoundBlockTypeName = IngredientGoods.Name;
+						break;
+					}
 				}
 			}
 			if (FoundBlockTypeName.IsNone())
 			{
-				UE_LOG(LogMMGame, Error, TEXT("RecipePlayGrid::GetRandomBlockTypeNameForCell - Unable to pick a recipe from weighted list. Number of list entries: %d  Weighted sum: %d"), GoodsOdds.Num(), TotalWeight);
+				UE_LOG(LogMMGame, Error, TEXT("RecipePlayGrid::GetRandomBlockTypeNameForCell - Unable to pick a recipe from weighted list. Number of list entries: %d  Weighted sum: %d"), IngredientBlockDropOdds.Num(), TotalWeight);
 			}
 			UE_CLOG(bDebugLog, LogMMGame, Log, TEXT("RecipePlayGrid::GetRandomBlockTypeNameForCell - Got block type % from recipe: %s"), *FoundBlockTypeName.ToString(), *GetRecipe().Name.ToString());
 		}
@@ -231,7 +235,7 @@ void ARecipePlayGrid::InitIngredientBlockDropOdds(const bool bForceRefresh)
 			continue;
 		}
 		TArray<FGoodsQuantity> BlockAwardGoods = GameMode->GetGoodsDropper()->EvaluateGoodsDropSet(BlockType.MatchDropGoods, 0.5f);
-		if (GoodsInventory->HasAllGoods(BlockAwardGoods))
+		if (!bIngredientsFromInventory || GoodsInventory->HasAllGoods(BlockAwardGoods))
 		{
 			// Get the recipe that produces the ingredient goods
 			FCraftingRecipe IngredientRecipe = GetRecipeManager()->GetRecipeForGoodsName(IngredientGoods.Name, bFound);

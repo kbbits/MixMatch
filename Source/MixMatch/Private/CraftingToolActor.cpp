@@ -115,6 +115,12 @@ TSubclassOf<AMMPlayGridCell> ACraftingToolActor::GetCellClass_Implementation()
 }
 
 
+int32 ACraftingToolActor::GetMaxPlayerMoves_Implementation()
+{
+	return 20;
+}
+
+
 int32 ACraftingToolActor::GetTargetBlockTypeCount_Implementation()
 {
 	return 5;
@@ -164,6 +170,9 @@ void ACraftingToolActor::SpawnGrid()
 	FIntPoint NewSize = GetNewGridSize();
 	NewGrid->SizeX = NewSize.X;
 	NewGrid->SizeY = NewSize.Y;
+	if (GetMaxPlayerMoves() > 0) {
+		NewGrid->MaxPlayerMovesCount = GetMaxPlayerMoves();
+	}
 	if (GetGridBlockSize().GetMax() > 0) {
 		NewGrid->BlockSize = GetGridBlockSize();
 	}

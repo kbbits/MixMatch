@@ -62,11 +62,17 @@ protected:
 	UPROPERTY()
 	TMap<FName, FGoodsType> CachedGoodsTypes;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	bool bDebugLog = true;
+
 private:
 
 	UPROPERTY(EditAnywhere, meta = (AllowPrivateAccess = "true"))
 	float DefaultBlockMoveSpeed;
 
+	UPROPERTY()
+	TArray<FName> AssetGroupsPendingLoad;
+	
 	// ####### FUNCTIONS
 
 public:
@@ -99,6 +105,8 @@ public:
 
 	bool SetBlockTypeSetName(const FName& BlockTypeSetName);
 
+	void CacheAssets(const TArray<FSoftObjectPath> AssetsToCache, const FName GroupName);
+
 protected:
 
 	void InitCachedBlockTypes(bool bForceRefresh = false);
@@ -110,6 +118,11 @@ protected:
 	void InitCachedGoodsTypes(bool bForceRefresh = false);
 
 	void InitGoodsDropper(bool bForceRefresh = false);
+	
+	void OnAssetsCached(const TArray<FSoftObjectPath> CachedAssets, const FName GroupName);
+
+	UFUNCTION(BlueprintNativeEvent)
+	void OnLoadComplete();
 
 };
 

@@ -2,6 +2,8 @@
 
 #include "MMGameMode.h"
 #include "Kismet/GameplayStatics.h"
+#include "Engine/StreamableManager.h"
+#include "Engine/AssetManager.h"
 #include "../MixMatch.h"
 #include "MMPlayerController.h"
 #include "MMPawn.h"
@@ -24,7 +26,10 @@ AMMGameMode::AMMGameMode()
 void AMMGameMode::BeginPlay()
 {
 	Super::BeginPlay();
+	AssetGroupsPendingLoad.Add(FName(TEXT("Goods")));
+	AssetGroupsPendingLoad.Add(FName(TEXT("Blocks")));
 	InitCachedGoodsTypes();
+	InitCachedBlockTypes();
 	InitWeightedBlockTypeSets();
 	TArray<AActor*> AllGrids;
 	AMMPlayerController* PC = Cast<AMMPlayerController>(UGameplayStatics::GetPlayerController(GetWorld(), 0));
@@ -277,12 +282,15 @@ void AMMGameMode::InitCachedBlockTypes(bool bForceRefresh)
 		UE_LOG(LogMMGame, Error, TEXT("AMMGameMode::InitCachedBlockTypes - BlocksTable is not valid"));
 		return;
 	}
+	TArray<FSoftObjectPath> AssetsToCache;
 	CachedBlockTypes.Empty(BlocksTable->GetRowMap().Num());
 	for (const TPair<FName, uint8*>& It : BlocksTable->GetRowMap())
 	{
 		FBlockType FoundBlockType = *reinterpret_cast<FBlockType*>(It.Value);
 		CachedBlockTypes.Add(It.Key, FoundBlockType);
+		AssetsToCache.AddUnique(FoundBlockType.BlockClass.ToSoftObjectPath());
 	}
+	CacheAssets(AssetsToCache, FName(TEXT("Blocks")));
 }
 
 
@@ -340,12 +348,15 @@ void AMMGameMode::InitCachedGoodsTypes(bool bForceRefresh)
 		UE_LOG(LogMMGame, Error, TEXT("MMGameMode::InitCachedGoodsTypes - GoodsTable is null."));
 		return;
 	}
+	TArray<FSoftObjectPath> AssetsToCache;
 	CachedGoodsTypes.Empty(GoodsTable->GetRowMap().Num());
 	for (const TPair<FName, uint8*>& It : GoodsTable->GetRowMap())
 	{
 		FGoodsType* FoundGoodsType = reinterpret_cast<FGoodsType*>(It.Value);
 		CachedGoodsTypes.Add(It.Key, *FoundGoodsType);
+		AssetsToCache.AddUnique(FoundGoodsType->Thumbnail.ToSoftObjectPath());
 	}
+	CacheAssets(AssetsToCache, FName(TEXT("Goods")));
 }
 
 
@@ -367,4 +378,42 @@ void AMMGameMode::InitGoodsDropper(bool bForceRefresh)
 		}
 		GoodsDropper->SeedRandomStream(FMath::RandRange(1, INT_MAX));
 	}
+}
+
+
+void AMMGameMode::CacheAssets(const TArray<FSoftObjectPath> AssetsToCache, const FName GroupName)
+{
+	if (AssetsToCache.Num() > 0)
+	{
+		AssetGroupsPendingLoad.AddUnique(GroupName);
+		TArray<FSoftObjectPath> TmpAssets;
+		for (FSoftObjectPath CurPath : AssetsToCache) {
+			if (!CurPath.IsNull()) {
+				TmpAssets.Add(CurPath);
+			}
+		}
+		UE_CLOG(bDebugLog, LogMMGame, Log, TEXT("MMGameMode::CacheAssets - %s caching %d assets"), *GroupName.ToString(), TmpAssets.Num());
+		FStreamableManager& Manager = UAssetManager::GetStreamableManager();
+		FStreamableDelegate Delegate = FStreamableDelegate::CreateUObject(this, &AMMGameMode::OnAssetsCached, TmpAssets, GroupName);
+		Manager.RequestAsyncLoad(TmpAssets, Delegate);
+	}
+}
+
+
+void AMMGameMode::OnAssetsCached(const TArray<FSoftObjectPath> CachedAssets, const FName GroupName)
+{
+	UE_CLOG(bDebugLog, LogMMGame, Log, TEXT("MMGameMode::OnAssetsCached - %s cached %d assets"), *GroupName.ToString(), CachedAssets.Num());
+	//for (FSoftObjectPath CurRef : CachedAssets)	{
+	//	AssetsToCache.RemoveSingle(CurRef);
+	//}
+	AssetGroupsPendingLoad.RemoveSingle(GroupName);
+	if (AssetGroupsPendingLoad.Num() == 0) {
+		OnLoadComplete();
+	}
+}
+
+
+void AMMGameMode::OnLoadComplete_Implementation()
+{
+
 }

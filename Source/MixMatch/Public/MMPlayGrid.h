@@ -15,6 +15,9 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnMatchAwards, const TArray<UBlockM
 // Event dispatcher for when grid gives award for matches
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnGridLocked, const AMMPlayGrid*, LockedGrid);
 
+// Event dispatcher for when grid reaches max player moves
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnMaxPlayerMoves, const AMMPlayGrid*, Grid);
+
 /** A match grid containing cells and blocks. */
 UCLASS(minimalapi)
 class AMMPlayGrid : public AActor
@@ -30,6 +33,10 @@ public:
 	// Delegate event called when grid becomes locked.
 	UPROPERTY(BlueprintAssignable, Category = "EventDispatchers")
 	FOnGridLocked OnGridLocked;
+
+	// Delegate event called when max player moves is reached.
+	UPROPERTY(BlueprintAssignable, Category = "EventDispatchers")
+	FOnMaxPlayerMoves OnMaxPlayerMoves;
 
 	UPROPERTY(VisibleDefaultsOnly, BlueprintReadOnly)
 	EMMGridState GridState;
@@ -91,6 +98,10 @@ public:
 	/** Number of moves player has made during current grid game */
 	UPROPERTY(BlueprintReadOnly)
 	int32 PlayerMovesCount;
+
+	/** If > 0, this is the maximum number of player moves allwed during grid game. */
+	UPROPERTY(BlueprintReadOnly)
+	int32 MaxPlayerMovesCount = 0;
 
 	/** Stop the new blocks from falling into the grid when other blocks are matched. 
 	 *  Currently used for dev/debug only. */

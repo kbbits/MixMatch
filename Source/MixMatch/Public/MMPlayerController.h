@@ -63,7 +63,13 @@ public:
 	void SetCurrentGrid(UPARAM(ref) AMMPlayGrid* NewCurrentGrid);
 
 	UFUNCTION(BlueprintCallable)
+	void ClearCurrentGrid();
+
+	UFUNCTION(BlueprintCallable)
 	AMMPlayGrid* GetCurrentGrid();
+
+	UFUNCTION(BlueprintCallable, meta = (ExpandBoolAsExecs = bIsValid))
+	AMMPlayGrid* GetCurrentGridValid(bool& bIsValid);
 
 	UFUNCTION(BlueprintCallable)
 	bool CraftRecipe(const FCraftingRecipe& Recipe);

@@ -348,6 +348,7 @@ void URecipeManagerComponent::InitCraftingRecipes(bool bForceRefresh)
 		return;
 	}
 	bool bFound;
+	TArray<FSoftObjectPath> AssetsToCache;
 	// Get recipe data
 	AllRecipeData.Empty(CraftingRecipesTable->GetRowMap().Num());
 	for (const TPair<FName, uint8*>& It : CraftingRecipesTable->GetRowMap())
@@ -357,6 +358,8 @@ void URecipeManagerComponent::InitCraftingRecipes(bool bForceRefresh)
 		//	RecipeLevels.Add(FoundRecipe.Name, 0);
 		//}
 		AllRecipeData.Add(It.Key, FoundRecipe);
+		AssetsToCache.AddUnique(FoundRecipe.Thumbnail.ToSoftObjectPath());
+		AssetsToCache.AddUnique(FoundRecipe.CraftSound.ToSoftObjectPath());
 		// Fill in the GoodsToRecipeMap
 		TArray<FGoodsQuantity> AllResultGoods;
 		if (!GetGoodsForRecipe(FoundRecipe, AllResultGoods, 1.f, true)) {
@@ -376,5 +379,6 @@ void URecipeManagerComponent::InitCraftingRecipes(bool bForceRefresh)
 			}
 		}
 	}
+	GameMode->CacheAssets(AssetsToCache, FName(TEXT("Recipes")));
 }
 
