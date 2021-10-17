@@ -92,15 +92,29 @@ bool AMMGameMode::GetRandomBlockTypeNameForCell(FName& FoundBlockTypeName, const
 		return false;
 	}
 	bool bUseExclusionList = BlockContext.ExcludedBlockNames.Num() > 0;
+	bool bPreventImmobile = BlockContext.OffsetAboveTopCell > 0.f || Cell->GetCoords().Y >= (Cell->OwningGrid->SizeY - 2);
 	float WeightSum = 0.f;
 	float PickedWeight = 0.f;
 	FName PickedBlockTypeName = NAME_None;
 	TArray<FWeightedBlockType> SelectedWeightedBlockTypes;
-	if (bUseExclusionList)
+	TArray<FWeightedBlockType> FallbackWeightedBlockTypes;
+	if (bUseExclusionList || bPreventImmobile)
 	{
 		float SpecialTotalBlockWeight = 0.f;
 		for (FWeightedBlockType WBT : CurrentWeightedBlockTypes) 
 		{
+			// For blocks dropping into grid
+			if (bPreventImmobile)
+			{
+				FBlockType TmpBlockType;
+				if (GetBlockTypeByName(WBT.BlockTypeName, TmpBlockType)) {
+					// Don't allow block types that are immobile
+					if (TmpBlockType.bImmobile) {
+						continue;
+					}
+				}
+			}
+			FallbackWeightedBlockTypes.Add(WBT);
 			if (!BlockContext.ExcludedBlockNames.Contains(WBT.BlockTypeName)) 
 			{
 				SpecialTotalBlockWeight += WBT.Weight;
@@ -110,8 +124,9 @@ bool AMMGameMode::GetRandomBlockTypeNameForCell(FName& FoundBlockTypeName, const
 		if (SelectedWeightedBlockTypes.Num() == 0) 
 		{
 			// If we ended up with no block types allowed, then pick a random one to add
-			int32 RandomIndex = FMath::RandRange(0, CurrentWeightedBlockTypes.Num() - 1);
-			SelectedWeightedBlockTypes.Add(CurrentWeightedBlockTypes[RandomIndex]);
+			int32 RandomIndex = FMath::RandRange(0, FallbackWeightedBlockTypes.Num() - 1);
+			SelectedWeightedBlockTypes.Add(FallbackWeightedBlockTypes[RandomIndex]);
+			SpecialTotalBlockWeight = FallbackWeightedBlockTypes[RandomIndex].Weight;
 		}
 		if (SelectedWeightedBlockTypes.Num() == 1) {
 			// If there is only one block type, just use that type

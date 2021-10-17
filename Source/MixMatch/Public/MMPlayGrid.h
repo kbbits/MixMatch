@@ -256,12 +256,12 @@ public:
 	virtual AMMBlock* AddRandomBlockInCell(const FAddBlockContext& BlockContext);
 
 	/** Drop a random block from above grid, to fall into given cell */
+	//UFUNCTION(BlueprintCallable)
+	//AMMBlock* DropRandomBlockInColumn(UPARAM(ref) AMMPlayGridCell* Cell);
+
+	/** Drop a random block from above grid, to fall into given cell.*/
 	UFUNCTION(BlueprintCallable)
 	AMMBlock* DropRandomBlockInColumn(UPARAM(ref) AMMPlayGridCell* Cell);
-
-	/** Drop a random block from above grid, to fall into given cell. Allows optional ExcludedBlockNames to use to filter the random block type generated. */
-	UFUNCTION(BlueprintCallable)
-	AMMBlock* DropRandomBlockInColumnEx(UPARAM(ref) AMMPlayGridCell* Cell, const TArray<FName>& ExcludedBlockNames);
 
 	/** Called when the given cell has become unoccupied. */
 	void CellBecameOpen(AMMPlayGridCell* Cell);
