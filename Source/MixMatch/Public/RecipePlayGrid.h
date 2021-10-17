@@ -81,10 +81,10 @@ public:
 	float GetChanceForIngredientBlock();
 
 	/** Override the base class's logic for which blocks will drop into the grid. */
-	virtual bool GetRandomBlockTypeNameForCellEx_Implementation(const AMMPlayGridCell* Cell, FName& FoundBlockTypeName, const TArray<FName>& ExcludedBlockNames) override;
+	virtual bool GetRandomBlockTypeNameForCell_Implementation(FName& FoundBlockTypeName, const FAddBlockContext& BlockContext) override;
 
 	/** Override base class so we can deduct ingredient goods from inventory if relevant. */
-	AMMBlock* AddRandomBlockInCellEx(AMMPlayGridCell* Cell, const TArray<FName>& ExcludedBlockNames, const float OffsetAboveCell, const bool bAllowUnsettle, const bool bPreventMatches) override;
+	virtual AMMBlock* AddRandomBlockInCell(const FAddBlockContext& BlockContext) override;
 
 protected:
 

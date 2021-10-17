@@ -23,11 +23,12 @@ struct FBlockType : public FTableRowBase
 public:
 
 	// Internal name for this block type. Must be unique.
-	// A name of "Any" will match against any other block.
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame)
 	FName Name = NAME_None;
 
 	// This is the primary match code used for matching other blocks.
+	// A match code of "Any" will match against any other block.
+	// A match code of NAME_None will not match any other block unless the blocks match by category.
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame)
 	FName MatchCode = NAME_None;
 
@@ -69,9 +70,12 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame)
 	FLinearColor AltColor;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame)
+	bool bTakesDamage = false;
 	
 	// The base health for this block. Used by some special block types.
-	// Not used for most blocks.
+	// Not used if bTakesDamage = false (the default).
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame)
 	float BaseHealth = 1.f;
 
@@ -278,4 +282,33 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame)
 	TArray<FWeightedBlockType> WeightedBlockTypes;
+};
+
+
+USTRUCT(BlueprintType)
+struct FAddBlockContext
+{
+	GENERATED_BODY()
+
+public:
+
+	/** Cell to add block to */
+	UPROPERTY(BlueprintReadWrite)
+	class AMMPlayGridCell* AddToCell;
+
+	/** If this block is falling into grid, this is the distance above the grid to spawn it. */
+	UPROPERTY(BlueprintReadWrite)
+	float OffsetAboveTopCell = 0.0f;
+
+	/** Should matches be prevented */
+	UPROPERTY(BlueprintReadWrite)
+	bool bPreventMatches = false;
+
+	/** This add is for the initial filling of the grid at start */
+	UPROPERTY(BlueprintReadWrite)
+	bool bForInitialFill = false;
+
+	/** Block names to exclude, if possible. */
+	UPROPERTY(BlueprintReadWrite)
+	TArray<FName> ExcludedBlockNames;
 };

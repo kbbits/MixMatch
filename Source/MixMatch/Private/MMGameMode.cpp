@@ -77,15 +77,12 @@ bool AMMGameMode::GetBlockTypeByName(const FName& BlockTypeName, FBlockType& Fou
 	}
 }
 
-bool AMMGameMode::GetRandomBlockTypeNameForCell(const AMMPlayGridCell* Cell, FName& FoundBlockTypeName)
-{
-	return GetRandomBlockTypeNameForCell(Cell, FoundBlockTypeName, TArray<FName>());
-}
 
-
-bool AMMGameMode::GetRandomBlockTypeNameForCell(const AMMPlayGridCell* Cell, FName& FoundBlockTypeName, const TArray<FName>& ExcludedBlockNames)
+bool AMMGameMode::GetRandomBlockTypeNameForCell(FName& FoundBlockTypeName, const FAddBlockContext& BlockContext)
 {
 	InitCachedBlockTypes();
+	AMMPlayGridCell* Cell = BlockContext.AddToCell;
+	check(Cell);
 	if (Cell->OwningGrid == nullptr) {
 		UE_LOG(LogMMGame, Error, TEXT("GameMode::GetRandomBlockTypeNameForCell - Cell at %s has null grid"), *(Cell->GetCoords()).ToString());
 		return false;
@@ -94,7 +91,7 @@ bool AMMGameMode::GetRandomBlockTypeNameForCell(const AMMPlayGridCell* Cell, FNa
 		UE_LOG(LogMMGame, Error, TEXT("GameMode::GetRandomBlockTypeNameForCell - Could not find block type set with name %s"), *Cell->OwningGrid->GetBlockTypeSetName().ToString());
 		return false;
 	}
-	bool bUseExclusionList = ExcludedBlockNames.Num() > 0;
+	bool bUseExclusionList = BlockContext.ExcludedBlockNames.Num() > 0;
 	float WeightSum = 0.f;
 	float PickedWeight = 0.f;
 	FName PickedBlockTypeName = NAME_None;
@@ -104,7 +101,7 @@ bool AMMGameMode::GetRandomBlockTypeNameForCell(const AMMPlayGridCell* Cell, FNa
 		float SpecialTotalBlockWeight = 0.f;
 		for (FWeightedBlockType WBT : CurrentWeightedBlockTypes) 
 		{
-			if (bUseExclusionList && !ExcludedBlockNames.Contains(WBT.BlockTypeName)) 
+			if (!BlockContext.ExcludedBlockNames.Contains(WBT.BlockTypeName)) 
 			{
 				SpecialTotalBlockWeight += WBT.Weight;
 				SelectedWeightedBlockTypes.Add(WBT);

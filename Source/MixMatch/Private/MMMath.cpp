@@ -3,6 +3,8 @@
 
 #include "MMMath.h"
 
+const TArray<EMMDirection> UMMMath::AllDirections = { EMMDirection::North, EMMDirection::NorthEast, EMMDirection::East, EMMDirection::SouthEast, 
+													  EMMDirection::South, EMMDirection::SouthWest, EMMDirection::West, EMMDirection::NorthWest};
 const TArray<EMMDirection> UMMMath::OrthogonalDirections = { EMMDirection::North, EMMDirection::East, EMMDirection::South, EMMDirection::West };
 const TArray<EMMDirection> UMMMath::DiagonalDirections = { EMMDirection::NorthEast, EMMDirection::SouthEast, EMMDirection::SouthWest, EMMDirection::NorthWest };
 
@@ -18,7 +20,7 @@ bool UMMMath::IsDiagonal(const EMMDirection Direction)
 }
 
 
-FVector2D UMMMath::DirectionToOffsetVector(const EMMDirection Direction)
+FVector2D UMMMath::DirectionToOffsetVector2D(const EMMDirection Direction)
 {
 	switch (Direction)
 	{
@@ -41,7 +43,6 @@ FVector2D UMMMath::DirectionToOffsetVector(const EMMDirection Direction)
 	default:
 		return FVector2D(0.0f, 0.0f);
 	}
-	return FVector2D(0.f, 0.f);
 }
 
 
@@ -68,7 +69,6 @@ FIntPoint UMMMath::DirectionToOffset(const EMMDirection Direction)
 	default:
 		return FIntPoint(0, 0);
 	}
-	return FIntPoint(0, 0);
 }
 
 

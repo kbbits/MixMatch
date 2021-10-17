@@ -24,11 +24,13 @@ public:
 	UPROPERTY(BluePrintReadOnly)
 	EMMOrientation Orientation = EMMOrientation::Unknown;
 
-	/** The coordinates of the block in this match closest to coords(0,0) (bottom left) */
+	/** The coordinates of the block in this match closest to coords(0,0) (bottom left) 
+	 *  Not valid until Sort() is called. */
 	UPROPERTY(BlueprintReadOnly)
 	FIntPoint StartCoords = FIntPoint::NoneValue;
 
-	/** The coordinates of the block in this match closest to coords(SizeX-1, SizeY-1) (top right) */
+	/** The coordinates of the block in this match closest to coords(SizeX-1, SizeY-1) (top right) 
+	 *  Not valid until Sort() is called. */
 	UPROPERTY(BlueprintReadOnly)
 	FIntPoint EndCoords = FIntPoint::NoneValue;
 
@@ -65,5 +67,9 @@ public:
 	 * Returns (-1, -1, -1) if location could not be determined. i.e. the match contains no blocks. */
 	UFUNCTION(BlueprintPure)
 	FVector GetWorldLocation();
+
+	/** Get all cells that are adjacent to any block in the match. */
+	UFUNCTION(BlueprintCallable)
+	TArray<class AMMPlayGridCell*> GetCellNeighbors(const bool bIncludeDiagonal = false);
 };
 

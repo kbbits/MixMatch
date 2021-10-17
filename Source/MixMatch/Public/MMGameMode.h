@@ -87,9 +87,7 @@ public:
 
 	bool GetBlockTypeByName(const FName& BlockTypeName, FBlockType& FoundBlockType);
 	
-	bool GetRandomBlockTypeNameForCell(const AMMPlayGridCell* Cell, FName& FoundBlockTypeName);
-
-	bool GetRandomBlockTypeNameForCell(const AMMPlayGridCell* Cell, FName& FoundBlockTypeName, const TArray<FName>& ExcludedBlockNames);
+	bool GetRandomBlockTypeNameForCell(FName& FoundBlockTypeName, const FAddBlockContext& BlockContext);
 
 	bool GetBlockClass(TSubclassOf<class AMMBlock>& BlockClass);
 

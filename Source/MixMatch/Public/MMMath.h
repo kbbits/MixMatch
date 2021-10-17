@@ -17,6 +17,9 @@ class UMMMath : public UBlueprintFunctionLibrary
 
 public:
 
+	// All eight directions.
+	static const TArray<EMMDirection> AllDirections;
+
 	// The predefined group of orthogonal directions: North, East, South, West
 	static const TArray<EMMDirection> OrthogonalDirections;
 
@@ -30,7 +33,7 @@ public:
 	static bool IsDiagonal(const EMMDirection Direction);
 
 	UFUNCTION(BlueprintPure)
-	static FVector2D DirectionToOffsetVector(const EMMDirection Direction);
+	static FVector2D DirectionToOffsetVector2D(const EMMDirection Direction);
 
 	UFUNCTION(BlueprintPure)
 	static FIntPoint DirectionToOffset(const EMMDirection Direction);
@@ -47,4 +50,5 @@ public:
 	/* Returns true if coords are orthagonally adjacent*/
 	UFUNCTION(BlueprintPure)
 	static bool CoordsAdjacent(const FIntPoint CoordsA, const FIntPoint CoordsB);
+
 };

@@ -95,8 +95,10 @@ bool UMatchActionSpawnBlock::Perform_Implementation(const UBlockMatch* Match, co
 			}
 			AMMPlayGridCell* SpawnCell = Grid->GetCell(SpawnCoords);
 			if (SpawnCell && SpawnCell->CurrentBlock == nullptr) {
+				FAddBlockContext BlockContext;
+				BlockContext.AddToCell = SpawnCell;
 				UE_LOG(LogMMGame, Log, TEXT("  MatchActionSpawnBlock::Perform spawning block at: %s"), *SpawnCoords.ToString());
-				Grid->AddBlockInCell(SpawnCell, FName(MatchActionType.ActionParam));
+				Grid->AddBlockInCell(FName(MatchActionType.ActionParam), BlockContext);
 			}
 			else {
 				UE_LOG(LogMMGame, Error, TEXT("MatchActionSpawnBlock::Perform - no empty cell at %s"), *SpawnCoords.ToString());

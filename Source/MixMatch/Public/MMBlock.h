@@ -99,6 +99,8 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = Block)
 	FBlockType BlockType;
 
+	UPROPERTY(BlueprintReadOnly, Category = Block)
+	int32 CurrentHealth;
 	
 	bool bMoveSuccessful;
 
@@ -146,7 +148,7 @@ public:
 
 	/** Should only be called once. Currently changing an existing block's type is not handled.
 	 *  (And is probably never necessary.) */
-	UFUNCTION(BlueprintCallable)
+	UFUNCTION(BlueprintCallable, BlueprintNativeEvent)
 	void SetBlockType(const FBlockType& NewBlockType);
 
 	UFUNCTION(BlueprintPure)
@@ -242,6 +244,19 @@ public:
 	UFUNCTION(BlueprintNativeEvent)
 	void OnSettle();
 
+	/** If this block takes damage, this will reduce current health by the DamageAmount and returns new current health.
+	 *  If this results in the block's current health reaching <= 0, block will call MMGrid::BlockDestroyedByDamage(). 
+	 *  If this block does not take damage, no changes are made and Max(current health, 1) is returned. 
+	 *  BP can override to apply FX, but MUST call parent to apply damage .*/
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable)
+	int32 TakeDamage(const int32 DamageAmount);
+
+	/** Override AActor TakeDamage() to call MMBlock::TakeDamage(int32)
+	 *  If BP overrides this, call parent as well. */
+	virtual float TakeDamage(float DamageAmount, struct FDamageEvent const& DamageEvent, class AController* EventInstigator, AActor* DamageCauser) override;
+
+	/** This block finshing an action/
+
 	/** This block has finished it's player-initiated movement. Notifies grid. */
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable)
 	void MoveFinished();
@@ -253,6 +268,8 @@ public:
 	/** This block has finished settling. Notifies grid. */
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable)
 	void SettleFinished();
+
+	/** Location stuff */
 
 	/** Gets this block's location relative to the grid. */
 	FVector GetRelativeLocation();

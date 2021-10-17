@@ -50,7 +50,7 @@ AMMBlock::AMMBlock()
 	BlockMesh->OnInputTouchBegin.AddDynamic(this, &AMMBlock::OnFingerPressedBlock);
 	
 	bFallingIntoGrid = false;
-	SettleFallDelay = 0.2f;
+	SettleFallDelay = 0.12f;
 	BlockState = EMMGridState::Normal;
 	bMatchedHorizontal = false;
 	bMatchedVertical = false;
@@ -59,6 +59,8 @@ AMMBlock::AMMBlock()
 
 void AMMBlock::OnConstruction(const FTransform& Transform)
 {
+	CurrentHealth = GetBlockType().BaseHealth;
+	SetCanBeDamaged(GetBlockType().bTakesDamage);
 	GetBlockMesh()->SetMaterial(0, BaseMaterial);
 	UpdateBlockVis();
 }
@@ -214,9 +216,11 @@ bool AMMBlock::SettleTick_Implementation(float DeltaSeconds)
 }
 
 
-void AMMBlock::SetBlockType(const FBlockType& NewBlockType)
+void AMMBlock::SetBlockType_Implementation(const FBlockType& NewBlockType)
 {
 	BlockType = NewBlockType;
+	CurrentHealth = BlockType.BaseHealth;
+	SetCanBeDamaged(BlockType.bTakesDamage);
 	UpdateBlockVis();
 }
 
@@ -552,6 +556,30 @@ void AMMBlock::OnSettle_Implementation()
 }
 
 
+int32 AMMBlock::TakeDamage_Implementation(const int32 DamageAmount)
+{
+	if (!CanBeDamaged()) {
+		return FMath::Max(CurrentHealth, 1);
+	}
+	CurrentHealth -= DamageAmount;
+	if (CurrentHealth <= 0) {
+		UE_CLOG(bDebugLog, LogMMGame, Log, TEXT("MMBlock::TakeDamage - block %s at %s took %d lethal damage"), *GetName(), *GetCoords().ToString(), DamageAmount);
+		Grid()->BlockDestroyedByDamage(this);
+	}
+	else {
+		UE_CLOG(bDebugLog, LogMMGame, Log, TEXT("MMBlock::TakeDamage - block %s at %s took %d damage"), *GetName(), *GetCoords().ToString(), DamageAmount);
+		UpdateBlockVis();
+	}
+	return CurrentHealth;
+}
+
+
+float AMMBlock::TakeDamage(float DamageAmount, struct FDamageEvent const& DamageEvent, class AController* EventInstigator, AActor* DamageCauser)
+{
+	return (float)TakeDamage(FMath::RoundToInt(DamageAmount));
+}
+
+
 void AMMBlock::MoveFinished_Implementation()
 {
 	bMovedByPlayer = false;
@@ -610,37 +638,23 @@ FVector AMMBlock::GetRelativeLocation()
 
 void AMMBlock::UpdateBlockVis()
 {
+	FLinearColor Color = GetBlockType().PrimaryColor;
 	if (bIsHighlighted)
 	{
-		//if (AltMatDynamic == nullptr) {
-		//	AltMatDynamic = GetBlockMesh()->CreateDynamicMaterialInstance(0, AltMaterial);
-		//}
-		//if (AltMatDynamic) {
-		//	AltMatDynamic->SetVectorParameterValue("PrimaryColor", BlockType.AltColor);
-		//	//GetBlockMesh()->SetMaterial(0, AltMaterial);
-		//	GetBlockMesh()->SetMaterial(0, AltMatDynamic);
-		//}
-		if (!IsValid(BaseMatDynamic)) 
-		{
-			BaseMatDynamic = GetBlockMesh()->CreateDynamicMaterialInstance(0, BaseMaterial);
-			//GetBlockMesh()->SetMaterial(0, BaseMaterial);
-			GetBlockMesh()->SetMaterial(0, BaseMatDynamic);
-		}
-		if (BaseMatDynamic) {
-			BaseMatDynamic->SetVectorParameterValue("PrimaryColor", BlockType.AltColor);
-		}
+		Color = GetBlockType().AltColor;
 	}
-	else
+	if (!IsValid(BaseMatDynamic)) 
 	{
-		if (!IsValid(BaseMatDynamic)) 
-		{
-			BaseMatDynamic = GetBlockMesh()->CreateDynamicMaterialInstance(0, BaseMaterial);
-			//GetBlockMesh()->SetMaterial(0, BaseMaterial);
-			GetBlockMesh()->SetMaterial(0, BaseMatDynamic);
+		BaseMatDynamic = GetBlockMesh()->CreateDynamicMaterialInstance(0, BaseMaterial);
+		//GetBlockMesh()->SetMaterial(0, BaseMaterial);
+		GetBlockMesh()->SetMaterial(0, BaseMatDynamic);
+	}
+	if (BaseMatDynamic) {
+		BaseMatDynamic->SetVectorParameterValue("PrimaryColor", Color);
+		if (CanBeDamaged()) {
+			float DamagePercent = (GetBlockType().BaseHealth - (float)CurrentHealth) / FMath::Max(1.f, BlockType.BaseHealth);
+			BaseMatDynamic->SetScalarParameterValue("DamagePercent", DamagePercent);
 		}
-		if (BaseMatDynamic) {
-			BaseMatDynamic->SetVectorParameterValue("PrimaryColor", BlockType.PrimaryColor);
-		}		
 	}
 }
 

@@ -91,7 +91,7 @@ float ARecipePlayGrid::GetChanceForIngredientBlock_Implementation()
 // Note: if bIngredientsFromInventory == true, ingredients produced by the chosen block type 
 // will be deducted from inventory when the block is added to the grid.
 //  @see ARecipePlayGrid::AddRandomBlockInCellEx
-bool ARecipePlayGrid::GetRandomBlockTypeNameForCellEx_Implementation(const AMMPlayGridCell* Cell, FName& FoundBlockTypeName, const TArray<FName>& ExcludedBlockNames)
+bool ARecipePlayGrid::GetRandomBlockTypeNameForCell_Implementation(FName& FoundBlockTypeName, const FAddBlockContext& BlockContext)
 {
 	AMMGameMode* GameMode = Cast<AMMGameMode>(UGameplayStatics::GetGameMode(this));
 	if (GameMode == nullptr) {
@@ -100,7 +100,7 @@ bool ARecipePlayGrid::GetRandomBlockTypeNameForCellEx_Implementation(const AMMPl
 	}
 	InitIngredientBlockDropOdds();
 	FoundBlockTypeName = NAME_None;
-	bool bUseExclusionList = ExcludedBlockNames.Num() > 0 && FMath::FRandRange(0.f, 1.f) < DuplicateSpawnPreventionFactor;
+	bool bUseExclusionList = BlockContext.ExcludedBlockNames.Num() > 0 && FMath::FRandRange(0.f, 1.f) < DuplicateSpawnPreventionFactor;
 	if (FMath::FRand() < GetChanceForIngredientBlock())
 	{
 		// Determine which ingredient goods are not excluded
@@ -108,7 +108,7 @@ bool ARecipePlayGrid::GetRandomBlockTypeNameForCellEx_Implementation(const AMMPl
 		// Iterate through the cached block drop odds for the grid's recipe
 		for (int32 i = 0; i < IngredientBlockDropOdds.Num(); i++)
 		{
-			if (!bUseExclusionList || !ExcludedBlockNames.Contains(IngredientBlockDropOdds[i].Name)) {
+			if (!bUseExclusionList || !BlockContext.ExcludedBlockNames.Contains(IngredientBlockDropOdds[i].Name)) {
 				AllowedInputs.Add(IngredientBlockDropOdds[i]);
 			}
 		}
@@ -159,10 +159,12 @@ bool ARecipePlayGrid::GetRandomBlockTypeNameForCellEx_Implementation(const AMMPl
 		FName UseBlockTypeSetName = FName(FString::Printf(TEXT("%s_%d"), *NonIngredientBlockTypeSetBaseName, FMath::Max(0, TargetBlockTypes - GetRecipe().CraftingInputs.Num())));
 		SetBlockTypeSetName(UseBlockTypeSetName);
 		if (bUseExclusionList) {
-			GameMode->GetRandomBlockTypeNameForCell(Cell, FoundBlockTypeName, ExcludedBlockNames);
+			GameMode->GetRandomBlockTypeNameForCell(FoundBlockTypeName, BlockContext);
 		}
 		else {
-			GameMode->GetRandomBlockTypeNameForCell(Cell, FoundBlockTypeName);
+			FAddBlockContext TmpContext = BlockContext;
+			TmpContext.ExcludedBlockNames.Empty();
+			GameMode->GetRandomBlockTypeNameForCell(FoundBlockTypeName, TmpContext);
 		}
 		UE_CLOG(bDebugLog, LogMMGame, Log, TEXT("RecipePlayGrid::GetRandomBlockTypeNameForCell - Got block type: %s from BlockTypeSet %s"), *FoundBlockTypeName.ToString(),*UseBlockTypeSetName.ToString());
 	}
@@ -170,10 +172,10 @@ bool ARecipePlayGrid::GetRandomBlockTypeNameForCellEx_Implementation(const AMMPl
 }
 
 /** Override the base class so we can drop "ingredient blocks" based on the grid's recipe. */
-AMMBlock* ARecipePlayGrid::AddRandomBlockInCellEx(AMMPlayGridCell* Cell, const TArray<FName>& ExcludedBlockNames, const float OffsetAboveCell, const bool bAllowUnsettle, const bool bPreventMatches)
+AMMBlock* ARecipePlayGrid::AddRandomBlockInCell(const FAddBlockContext& BlockContext)
 {
 	// Call base class first
-	AMMBlock* NewBlock = Super::AddRandomBlockInCellEx(Cell, ExcludedBlockNames, OffsetAboveCell, bAllowUnsettle, bPreventMatches);
+	AMMBlock* NewBlock = Super::AddRandomBlockInCell(BlockContext);
 
 	// Check NewBLock for ingredient logic
 	if (NewBlock && bIngredientsFromInventory && NewBlock->HasCategory(BlockCategory::Goods))
@@ -193,7 +195,7 @@ AMMBlock* ARecipePlayGrid::AddRandomBlockInCellEx(AMMPlayGridCell* Cell, const T
 					TArray<FGoodsQuantity> IngredientAwardGoods = UGoodsFunctionLibrary::CountsInGoodsQuantities(GetRecipe().CraftingInputs, BlockAwardGoods);
 					// Subtract block's ingredient match goods from grid's inventory.
 					if (!GoodsInventory->AddSubtractGoodsArray(IngredientAwardGoods, true)) {
-						UE_LOG(LogMMGame, Warning, TEXT("RecipePlayGrid::AddRandomBlockInCellEx - cannot deduct goods from grid inventory for block %s with block type %s"), *NewBlock->GetName(), *NewBlock->GetBlockType().Name.ToString());
+						UE_LOG(LogMMGame, Warning, TEXT("RecipePlayGrid::AddRandomBlockInCell - cannot deduct goods from grid inventory for block %s with block type %s"), *NewBlock->GetName(), *NewBlock->GetBlockType().Name.ToString());
 					}
 					int32 Index = IngredientBlockDropOdds.IndexOfByKey(BlockTypeName);
 					if (Index != INDEX_NONE && !GoodsInventory->HasAllGoods(IngredientAwardGoods)) {

@@ -15,6 +15,9 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnMatchAwards, const TArray<UBlockM
 // Event dispatcher for when grid gives award for matches
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnGridLocked, const AMMPlayGrid*, LockedGrid);
 
+// Event dispatcher for when player makes a move on the grid
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnPlayerMoved, const AMMPlayGrid*, Grid);
+
 // Event dispatcher for when grid reaches max player moves
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnMaxPlayerMoves, const AMMPlayGrid*, Grid);
 
@@ -33,6 +36,10 @@ public:
 	// Delegate event called when grid becomes locked.
 	UPROPERTY(BlueprintAssignable, Category = "EventDispatchers")
 	FOnGridLocked OnGridLocked;
+
+	// Delegate event called when player moves a block on the grid.
+	UPROPERTY(BlueprintAssignable, Category = "EventDispatchers")
+	FOnPlayerMoved OnPlayerMoved;
 
 	// Delegate event called when max player moves is reached.
 	UPROPERTY(BlueprintAssignable, Category = "EventDispatchers")
@@ -142,6 +149,9 @@ protected:
 	UPROPERTY(BlueprintReadOnly)
 	TArray<AMMBlock*> BlocksToCheck;
 
+	UPROPERTY()
+	TArray<AMMBlock*> BlocksToDestroy;
+
 	/** Simple queue of sounds to play. Sounds are played and queue is emptied on each tick. */
 	UPROPERTY()
 	TArray<USoundBase*> PlaySoundQueue;
@@ -235,30 +245,23 @@ public:
 
 	// Base class implementation calls GameMode->GetRandomBlockTypeNameForCell
 	UFUNCTION(BlueprintNativeEvent)
-	bool GetRandomBlockTypeNameForCell(const AMMPlayGridCell* Cell, FName& FoundBlockTypeName);
-
-	UFUNCTION(BlueprintNativeEvent)
-	bool GetRandomBlockTypeNameForCellEx(const AMMPlayGridCell* Cell, FName& FoundBlockTypeName, const TArray<FName>& ExcludedBlockNames);
+	bool GetRandomBlockTypeNameForCell(FName& FoundBlockTypeName, const FAddBlockContext& BlockContext);
 
 	/** Add a new block of the given block type into the given cell. */
 	UFUNCTION(BlueprintCallable)
-	AMMBlock* AddBlockInCell(UPARAM(ref) AMMPlayGridCell* Cell, const FName& BlockType, const float OffsetAboveCell = 0.f, const bool bAllowUnsettle = true);
+	AMMBlock* AddBlockInCell(const FName& BlockType, const FAddBlockContext& BlockContext);
 
 	/** Add a new block of a random block type to the given cell. */
 	UFUNCTION(BlueprintCallable)
-	AMMBlock* AddRandomBlockInCell(UPARAM(ref) AMMPlayGridCell* Cell, const float OffsetAboveCell = 0.f, const bool bAllowUnsettle = true, const bool bPreventMatches = false);
-
-	/** Add a new block of a random block type to the given cell. Allows optional list of ExcludedBlockNames to use to filter the random block type generated */
-	UFUNCTION(BlueprintCallable)
-	virtual AMMBlock* AddRandomBlockInCellEx(UPARAM(ref) AMMPlayGridCell* Cell, const TArray<FName>& ExcludedBlockNames, const float OffsetAboveCell = 0.f, const bool bAllowUnsettle = true, const bool bPreventMatches = false);
+	virtual AMMBlock* AddRandomBlockInCell(const FAddBlockContext& BlockContext);
 
 	/** Drop a random block from above grid, to fall into given cell */
 	UFUNCTION(BlueprintCallable)
-	AMMBlock* DropRandomBlockInColumn(UPARAM(ref) AMMPlayGridCell* Cell, const bool bPreventMatches = false);
+	AMMBlock* DropRandomBlockInColumn(UPARAM(ref) AMMPlayGridCell* Cell);
 
 	/** Drop a random block from above grid, to fall into given cell. Allows optional ExcludedBlockNames to use to filter the random block type generated. */
 	UFUNCTION(BlueprintCallable)
-	AMMBlock* DropRandomBlockInColumnEx(UPARAM(ref) AMMPlayGridCell* Cell, const TArray<FName>& ExcludedBlockNames, const bool bPreventMatches = false);
+	AMMBlock* DropRandomBlockInColumnEx(UPARAM(ref) AMMPlayGridCell* Cell, const TArray<FName>& ExcludedBlockNames);
 
 	/** Called when the given cell has become unoccupied. */
 	void CellBecameOpen(AMMPlayGridCell* Cell);
@@ -268,6 +271,10 @@ public:
 	/** Get cell at given grid coordinates. */
 	UFUNCTION(BlueprintPure)
 	AMMPlayGridCell* GetCell(const FIntPoint& Coords);
+
+	/** Get cell that are adjacent to the given cell. */
+	UFUNCTION(BlueprintPure)
+	TArray<AMMPlayGridCell*> GetCellNeighbors(const AMMPlayGridCell* Cell, const bool bIncludeDiagonal = false);
 
 	/** Get the cell at the top of the column. This is the top cell in the grid. i.e. it does not include blocks that are falling into 
 	 * the grid but are not yet in any grid cell. */
@@ -380,6 +387,9 @@ public:
 	void BlockFinishedMatch(AMMBlock* Block, UBlockMatch* Match);
 
 	void AllMatchesFinished();
+
+	/** Handles destruction of a block via damage. */
+	void BlockDestroyedByDamage(AMMBlock* Block);
 
 	//### Misc.
 
