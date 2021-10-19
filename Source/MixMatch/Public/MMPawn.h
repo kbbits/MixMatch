@@ -3,11 +3,11 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "GameFramework/Pawn.h"
+#include "GameFramework/DefaultPawn.h"
 #include "MMPawn.generated.h"
 
 UCLASS(config=Game)
-class AMMPawn : public APawn
+class AMMPawn : public ADefaultPawn
 {
 	GENERATED_BODY()
 

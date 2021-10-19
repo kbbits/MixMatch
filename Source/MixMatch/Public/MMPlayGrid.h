@@ -107,7 +107,7 @@ public:
 	int32 PlayerMovesCount;
 
 	/** If > 0, this is the maximum number of player moves allwed during grid game. */
-	UPROPERTY(BlueprintReadOnly)
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 	int32 MaxPlayerMovesCount = 0;
 
 	/** Stop the new blocks from falling into the grid when other blocks are matched. 
@@ -211,9 +211,15 @@ public:
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable)
 	void StartPlayGrid();
 
+	UFUNCTION(BlueprintImplementableEvent)
+	void StopPlayGrid();
+
 	/** Minimum number of matching blocks to qualify as a match */
 	UFUNCTION(BlueprintPure)
 	int32 GetMinimumMatchSize();
+
+	UFUNCTION(BlueprintCallable)
+	void SetMinimumMatchSize(const int32 NewMinimumMatchSize);
 
 	/** Set the name of the BlockTypeSet that is used by the grid to determine which blocks will be generated. */
 	UFUNCTION(BlueprintCallable)
@@ -254,11 +260,7 @@ public:
 	/** Add a new block of a random block type to the given cell. */
 	UFUNCTION(BlueprintCallable)
 	virtual AMMBlock* AddRandomBlockInCell(const FAddBlockContext& BlockContext);
-
-	/** Drop a random block from above grid, to fall into given cell */
-	//UFUNCTION(BlueprintCallable)
-	//AMMBlock* DropRandomBlockInColumn(UPARAM(ref) AMMPlayGridCell* Cell);
-
+		
 	/** Drop a random block from above grid, to fall into given cell.*/
 	UFUNCTION(BlueprintCallable)
 	AMMBlock* DropRandomBlockInColumn(UPARAM(ref) AMMPlayGridCell* Cell);

@@ -16,6 +16,9 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnCurrentGridChanged, const AMMPlay
 // Event dispatcher for when player starts play on a grid
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnPlayGridStarted, const AMMPlayGrid*, PlayingGrid);
 
+// Event dispatcher for when player stops play on a grid
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnPlayGridStopped, const AMMPlayGrid*, PlayingGrid);
+
 // Event dispatcher for when a recipe is crafted
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnRecipeCrafted, const FCraftingRecipe&, CraftedRecipe, const int32, QuantityCrafted);
 
@@ -35,6 +38,9 @@ public:
 
 	UPROPERTY(BlueprintAssignable, Category = "EventDispatchers")
 	FOnPlayGridStarted OnPlayGridStarted;
+
+	UPROPERTY(BlueprintAssignable, Category = "EventDispatchers")
+	FOnPlayGridStarted OnPlayGridStopped;
 
 	// Delegate event when a recipe is crafted
 	UPROPERTY(BlueprintAssignable, Category = "EventDispatchers")
@@ -87,6 +93,10 @@ public:
 	/** Base class calls StartPlayGrid on current grid and fires OnPlayGridStarted event. */
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable)
 	void OnPlayGrid();
+
+	/** Call when play on grid has stopped.  Base class calls StopPlayGrid on grid and fires OnPlayGridStopped event. */
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable)
+	void OnStopGrid();
 
 };
 

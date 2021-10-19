@@ -20,6 +20,11 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	int32 TargetBlockTypes = 4;
 
+	/** The multiplier applied to the odds to drop an ingredient block. 
+	 *  chance to drop ingredient = (Number of ingredient block types / TargetBlockTypes) * IngredientDropFactor */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float IngredientDropFactor = 0.75f;
+
 	/** The string to be pre-pended when looking for the block type set to use for generating non-ingredient blocks. 
 	 *  More clearly:  Non-Ingredient BlockTypeSet name
 	 *  Actual block type set name used will be "<NonIngredientBlockTypeSetName>_<clamp to >= 0 (TargetBlockTYpes - Recipe.CraftingIngredients.Num())>"  */

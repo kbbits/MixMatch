@@ -51,7 +51,9 @@ void AMMPawn::CalcCamera(float DeltaTime, struct FMinimalViewInfo& OutResult)
 {
 	Super::CalcCamera(DeltaTime, OutResult);
 
-	OutResult.Rotation = FRotator(-90.0f, -90.0f, 0.0f);
+	if (UHeadMountedDisplayFunctionLibrary::IsHeadMountedDisplayEnabled()){
+		OutResult.Rotation = FRotator(-90.0f, -90.0f, 0.0f);
+	}
 }
 
 void AMMPawn::OnResetVR()

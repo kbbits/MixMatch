@@ -100,3 +100,10 @@ void AMMPlayerController::OnPlayGrid_Implementation()
 	GetCurrentGrid()->StartPlayGrid();
 	OnPlayGridStarted.Broadcast(GetCurrentGrid());
 }
+
+
+void AMMPlayerController::OnStopGrid_Implementation()
+{
+	GetCurrentGrid()->StopPlayGrid();
+	OnPlayGridStopped.Broadcast(GetCurrentGrid());
+}

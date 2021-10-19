@@ -82,7 +82,8 @@ int32 ARecipePlayGrid::GetRecipeLevel()
 float ARecipePlayGrid::GetChanceForIngredientBlock_Implementation()
 {
 	if (bIngredientsFromInventory && (IngredientBlockDropOdds.Num() == 0 || GoodsInventory->IsEmpty())) return 0.f;
-	float NormalPercent = FMath::TruncToFloat(1.f / FMath::Max(1.f, (float)(TargetBlockTypes - GetRecipe().CraftingInputs.Num())));
+	float NormalPercent = ((float)GetRecipe().CraftingInputs.Num()) / FMath::Max(1.f, (float)(TargetBlockTypes));
+	NormalPercent *= IngredientDropFactor;
 	float MaxPercent = NormalPercent + ((1 - NormalPercent) * 0.25f);
 	return FMath::Min(((float)GetRecipeLevel() * 0.005f) + NormalPercent, MaxPercent);
 }
@@ -226,6 +227,7 @@ void ARecipePlayGrid::InitIngredientBlockDropOdds(const bool bForceRefresh)
 	}
 	TArray<FGoodsQuantity> CraftingInputs = GetRecipe().CraftingInputs;
 	IngredientBlockDropOdds.Empty();
+	UE_CLOG(bDebugLog, LogMMGame, Log, TEXT("RecipePlayGrid::InitIngredientGoodsDropOdds - Init for recipe: %s with %d ingredients"), *GetRecipe().Name.ToString(), CraftingInputs.Num());
 	// Determine the odds of each ingredient type that could be picked
 	for (int32 i = 0; i < CraftingInputs.Num(); i++)
 	{
@@ -261,6 +263,12 @@ void ARecipePlayGrid::InitIngredientBlockDropOdds(const bool bForceRefresh)
 					// Just using a FGoodsQuantity as odds entries because it's convenient -- it has a name and float.
 					IngredientBlockDropOdds.Add(FGoodsQuantity(IngredientGoods.Name, FMath::Max(0.5f, ProductionRatio)));
 				}
+			}
+		}
+		else {
+			UE_CLOG(bDebugLog, LogMMGame, Warning, TEXT("RecipePlayGrid::InitIngredientGoodsDropOdds - Grid does not have inventory for recipe %s"), *GetRecipe().Name.ToString());
+			for (FGoodsQuantity AwardGQ : BlockAwardGoods) {
+				UE_CLOG(bDebugLog, LogMMGame, Warning, TEXT("                                              Need %0.f %s.  Have %0.f"), AwardGQ.Quantity, *AwardGQ.Name.ToString(), GoodsInventory->GetGoodsCount(AwardGQ.Name));
 			}
 		}
 	}

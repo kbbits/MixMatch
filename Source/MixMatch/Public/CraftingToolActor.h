@@ -99,6 +99,11 @@ public:
 	UFUNCTION(BlueprintPure)
 	FCraftingRecipe GetRecipe();
 
+	/** If this returns > 2, this will override the grid's minimum match size. 
+	 *  Base class returns -1, so grid's default will be used. */
+	UFUNCTION(BlueprintCallable, BlueprintNativeEvent)
+	int32 GetMinimumMatchSize();
+
 	/** If this returns a valid play grid cell class, this will override the grid class's setting for CellClass 
 	 *  Base class returns null so grid's CellClass is used. */
 	UFUNCTION(BlueprintNativeEvent)
@@ -106,17 +111,17 @@ public:
 
 	/** If this returns a value > 0, then this will set the grid's maximum player moves that should be allowed for the next play-through of the grid. 
 	 *  Base class just returns 20. */
-	UFUNCTION(BlueprintNativeEvent)
+	UFUNCTION(BlueprintCallable, BlueprintNativeEvent)
 	int32 GetMaxPlayerMoves();
 
 	/** The target number of different block types for the tool. 
 	 *   Base class just returns 5.  */
-	UFUNCTION(BlueprintNativeEvent)
+	UFUNCTION(BlueprintCallable, BlueprintNativeEvent)
 	int32 GetTargetBlockTypeCount();
 
 	/** Base class returns a fixed size grid (GetTargetBlockTypeCount + 2, GetTargetBlockTypeCount + 2) 
 	 *  @returns the size of the grid that should be created. */
-	UFUNCTION(BlueprintNativeEvent)
+	UFUNCTION(BlueprintCallable, BlueprintNativeEvent)
 	FIntPoint GetNewGridSize();
 
 	/** 

@@ -27,7 +27,7 @@ AMMPlayGrid::AMMPlayGrid()
 	{
 		ConstructorHelpers::FObjectFinderOptional<UStaticMesh> ToggleBlocksMesh;
 		FConstructorStatics()
-			: ToggleBlocksMesh(TEXT("/Game/Puzzle/Meshes/PuzzleCube.PuzzleCube"))
+			: ToggleBlocksMesh(TEXT("/Game/MixMatch/Assets/Meshes/PuzzleCube.PuzzleCube"))
 		{
 		}
 	};
@@ -196,6 +196,12 @@ void AMMPlayGrid::BeginPlay()
 int32 AMMPlayGrid::GetMinimumMatchSize()
 {
 	return MinimumMatchSize;
+}
+
+
+void AMMPlayGrid::SetMinimumMatchSize(const int32 NewMinimumMatchSize)
+{
+	MinimumMatchSize = NewMinimumMatchSize;
 }
 
 
@@ -507,12 +513,6 @@ AMMBlock* AMMPlayGrid::AddRandomBlockInCell(const FAddBlockContext& BlockContext
 	}
 	return NewBlock;
 }
-
-
-//AMMBlock* AMMPlayGrid::DropRandomBlockInColumn(AMMPlayGridCell* Cell)
-//{
-//	return DropRandomBlockInColumnEx(Cell, TArray<FName>());
-//}
 
 
 AMMBlock* AMMPlayGrid::DropRandomBlockInColumn(UPARAM(ref) AMMPlayGridCell* Cell)
