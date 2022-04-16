@@ -1,13 +1,23 @@
 #pragma once
 
+UENUM(BlueprintType)
+enum class EMMInputContext : uint8
+{
+	None		UMETA(DisplayName = "None"),
+	Saving		UMETA(DisplayName = "Saving"),
+	Loading		UMETA(DisplayName = "Loading"),
+	InPlayGrid	UMETA(DisplayName = "InPlayGrid"),
+	InMenu		UMETA(DisplayName = "InMenu")
+};
+
 
 UENUM(BlueprintType)
 enum class EMMGridState : uint8
 {
-	Normal		UMETA(DispalyName = "Normal"),
+	Normal		UMETA(DisplayName = "Normal"),
 	Moving		UMETA(DisplayName = "Moving"),
 	Matching	UMETA(DisplayName = "Matching"),
-	Settling	UMETA(DispalyName = "Settling")
+	Settling	UMETA(DisplayName = "Settling")
 };
 
 
@@ -28,13 +38,13 @@ UENUM(BlueprintType)
 enum class EMMDirection : uint8
 {
 	North		UMETA(DisplayName = "North"),
-	NorthEast	UMETA(DispalyName = "NorthEast"),
+	NorthEast	UMETA(DisplayName = "NorthEast"),
 	East		UMETA(DisplayName = "East"),
-	SouthEast	UMETA(DispalyName = "SouthEast"),
+	SouthEast	UMETA(DisplayName = "SouthEast"),
 	South		UMETA(DisplayName = "South"),
-	SouthWest	UMETA(DispalyName = "SouthWest"),
+	SouthWest	UMETA(DisplayName = "SouthWest"),
 	West		UMETA(DisplayName = "West"),
-	NorthWest	UMETA(DispalyName = "NorthWest")
+	NorthWest	UMETA(DisplayName = "NorthWest")
 }; 
 
 

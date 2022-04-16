@@ -4,6 +4,7 @@
 #include "GameFramework/PlayerController.h"
 #include "../MixMatch.h"
 #include "MMGameMode.h"
+#include "SimpleNamedTypes.h"
 #include "Goods/Goods.h"
 #include "Goods/GoodsDropper.h"
 
@@ -92,6 +93,12 @@ int32 URecipeManagerComponent::GetRecipeLevel(const FName& RecipeName)
 }
 
 
+TMap<FName, int32> URecipeManagerComponent::GetRecipeLevels()
+{
+	return RecipeLevels;
+}
+
+
 int32 URecipeManagerComponent::IncrementRecipeLevel(const FName& RecipeName, const int32 IncrementAmount)
 {
 	int32 NewLevel = GetRecipeLevel(RecipeName) + IncrementAmount;
@@ -162,6 +169,11 @@ int32 URecipeManagerComponent::GetRecipeCraftingCount(const FName& RecipeName)
 		return *CurTotal;
 	}
 	return 0;
+}
+
+TMap<FName, int32> URecipeManagerComponent::GetRecipeCraftingCounts()
+{
+	return RecipeCraftings;
 }
 
 
@@ -321,6 +333,23 @@ int32 URecipeManagerComponent::CraftableCountForGoods(const TArray<FGoodsQuantit
 		}
 	}
 	return MinCraftings;
+}
+
+
+bool URecipeManagerComponent::GetSaveData(FPlayerSaveData& SaveData)
+{
+	IntMapToNamedArray(GetRecipeCraftingCounts(), SaveData.TotalRecipesCrafted);
+	IntMapToNamedArray(GetRecipeLevels(), SaveData.RecipeLevels);
+	return true;
+}
+
+
+void URecipeManagerComponent::UpdateFromSaveData(const FPlayerSaveData& SaveData)
+{
+	RecipeCraftings.Empty();
+	RecipeCraftings.Append(NamedQuantitiesToCountMap(SaveData.TotalRecipesCrafted));
+	RecipeLevels.Empty();
+	RecipeLevels.Append(NamedQuantitiesToCountMap(SaveData.RecipeLevels));
 }
 
 

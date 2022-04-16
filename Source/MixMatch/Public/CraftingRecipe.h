@@ -30,10 +30,10 @@ public:
 		FText DisplayName;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame)
-		TAssetPtr<UTexture2D> Thumbnail;
+		TSoftObjectPtr<UTexture2D> Thumbnail;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame)
-		TAssetPtr<USoundBase> CraftSound;
+		TSoftObjectPtr<USoundBase> CraftSound;
 
 	// Currently unused. Additional requirements (not consumed) in order for the recipe to be crafted.
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame)
@@ -55,7 +55,7 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame)
 		int32 Tier;
 
-	// Seconds required to craft this recipe at normal (100%) crafting speed.
+	// Currently unused. Seconds required to craft this recipe at normal (100%) crafting speed.
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame)
 		float CraftingTime;
 

@@ -1,7 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MMPlayerController.h"
+//#include "SimpleNamedTypes.h"
 #include "Kismet/GameplayStatics.h"
+#include "Goods/GoodsFunctionLibrary.h"
 #include "../MixMatch.h"
 
 
@@ -12,6 +14,15 @@ AMMPlayerController::AMMPlayerController()
 	bEnableClickEvents = true;
 	bEnableTouchEvents = true;
 	DefaultMouseCursor = EMouseCursor::Crosshairs;
+	LoadedTotalPlaytime = 0.0f;
+	TimeAtLastSave = 0.0f;
+
+	PersistentDataComponent = CreateDefaultSubobject<UPersistentDataComponent>(TEXT("PersistentDataComponent"));
+	if (PersistentDataComponent) {
+		AddOwnedComponent(PersistentDataComponent);
+		//PersistentDataComponent->SetIsReplicated(true);
+	}
+	else { UE_LOG(LogMMGame, Error, TEXT("PlayerController constructor failed to create PersistentDataComponent")); }
 
 	GoodsInventory = CreateDefaultSubobject<UInventoryActorComponent>(TEXT("GoodsInventory"));
 	if (GoodsInventory) {
@@ -22,6 +33,52 @@ AMMPlayerController::AMMPlayerController()
 	if (RecipeManager) {
 		AddOwnedComponent(RecipeManager);
 	}
+}
+
+
+bool AMMPlayerController::GetPlayerSaveData_Implementation(FPlayerSaveData& SaveData)
+{
+	// Copy empty default struct in first in case this save already has data.
+	SaveData = FPlayerSaveData();
+	if (!PlayerGuid.IsValid()) {
+		PlayerGuid = FGuid::NewGuid();
+	}
+	SaveData.PlayerGuid = PlayerGuid;
+	SaveData.ProfileName = FName(PlayerDisplayName.ToString());
+	SaveData.DisplayName = PlayerDisplayName;
+	SaveData.TotalPlaytime = LoadedTotalPlaytime + (UGameplayStatics::GetTimeSeconds(this) - TimeAtLastSave);
+	TimeAtLastSave = UGameplayStatics::GetTimeSeconds(this);
+	// Inventory
+	GoodsInventory->GetSaveableGoods(SaveData.GoodsInventory);
+	GoodsInventory->GetSnapshotGoods(SaveData.SnapshotInventory);
+	// Other data
+	if (RecipeManager) 
+	{
+		RecipeManager->GetSaveData(SaveData);
+	}
+	else 
+	{
+		UE_LOG(LogMMGame, Error, TEXT("PlayerController GetPlayerSaveData found null RecipeManager."));
+		return false;
+	}
+	return true;
+}
+
+
+bool AMMPlayerController::UpdateFromPlayerSaveData_Implementation(const FPlayerSaveData& SaveData)
+{
+	PlayerGuid = SaveData.PlayerGuid;
+	PlayerDisplayName = SaveData.DisplayName;
+	LoadedTotalPlaytime = SaveData.TotalPlaytime;
+	TimeAtLastSave = UGameplayStatics::GetTimeSeconds(this);
+	// Inventory
+	GoodsInventory->ServerSetInventory(SaveData.GoodsInventory, SaveData.SnapshotInventory);
+	// Other data
+	if (RecipeManager)
+	{
+		RecipeManager->UpdateFromSaveData(SaveData);
+	}
+	return true;
 }
 
 
@@ -66,6 +123,14 @@ AMMPlayGrid* AMMPlayerController::GetCurrentGridValid(bool& bIsValid)
 }
 
 
+void AMMPlayerController::CollectGoods(const TArray<FGoodsQuantity> CollectedGoods)
+{
+	GoodsInventory->ServerAddSubtractGoodsArray(CollectedGoods, false, true);
+	UGoodsFunctionLibrary::AddToGoodsQuantities(TotalGoodsCollected, CollectedGoods);
+	OnGoodsCollected.Broadcast(CollectedGoods);
+}
+
+
 bool AMMPlayerController::CraftRecipe(const FCraftingRecipe& Recipe)
 {
 	if (GoodsInventory->AddSubtractGoodsArray(Recipe.CraftingInputs, true, true))
@@ -98,6 +163,7 @@ void AMMPlayerController::SetRecipeLevel(const FName RecipeName, const int32 New
 void AMMPlayerController::OnPlayGrid_Implementation()
 {
 	GetCurrentGrid()->StartPlayGrid();
+	AddInputContext(EMMInputContext::InPlayGrid);
 	OnPlayGridStarted.Broadcast(GetCurrentGrid());
 }
 
@@ -105,5 +171,50 @@ void AMMPlayerController::OnPlayGrid_Implementation()
 void AMMPlayerController::OnStopGrid_Implementation()
 {
 	GetCurrentGrid()->StopPlayGrid();
+	RemoveInputContext(EMMInputContext::InPlayGrid);
 	OnPlayGridStopped.Broadcast(GetCurrentGrid());
+}
+
+
+void AMMPlayerController::AddInputContext(const EMMInputContext NewContext)
+{
+	InputContextStack.Push(NewContext);
+}
+
+
+void AMMPlayerController::RemoveInputContext(const EMMInputContext RemoveContext, const bool bRemoveAll)
+{
+	if (bRemoveAll)	{
+		InputContextStack.Remove(RemoveContext);
+	}
+	else {
+		int32 Index;
+		InputContextStack.FindLast(RemoveContext, Index);
+		if (Index >= 0) {
+			InputContextStack.RemoveAt(Index);
+		}
+	}
+}
+
+
+void AMMPlayerController::ClearInputContextStack()
+{
+	InputContextStack.Empty();
+}
+
+
+EMMInputContext AMMPlayerController::GetLastInputContext()
+{
+	if (InputContextStack.Num() > 0) {
+		return InputContextStack.Last();
+	}
+	else {
+		return EMMInputContext::None;
+	}
+}
+
+
+bool AMMPlayerController::HasInputContext(const EMMInputContext CheckContext)
+{
+	return InputContextStack.Contains(CheckContext);
 }

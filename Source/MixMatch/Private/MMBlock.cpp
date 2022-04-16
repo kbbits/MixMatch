@@ -6,6 +6,8 @@
 #include "Engine/StaticMesh.h"
 #include "Kismet/GameplayStatics.h"
 #include "..\MixMatch.h"
+#include "MMEnums.h"
+#include "MMPlayerController.h"
 #include "MMPlayGrid.h"
 #include "MMGameMode.h"
 #include "Goods/GoodsDropper.h"
@@ -387,10 +389,14 @@ void AMMBlock::OnFingerPressedBlock(ETouchIndex::Type FingerIndex, UPrimitiveCom
 
 void AMMBlock::HandleClicked()
 {
-	// Tell the Grid
-	if (Grid() != nullptr) {
-		Grid()->BlockClicked(this);
-	}
+	AMMPlayerController* PC = Cast<AMMPlayerController>(UGameplayStatics::GetPlayerController(GetWorld(), 0));
+	if (PC && PC->GetLastInputContext() == EMMInputContext::InPlayGrid)
+	{
+		// Tell the Grid
+		if (Grid() != nullptr) {
+			Grid()->BlockClicked(this);
+		}
+	}	
 }
 
 void AMMBlock::Highlight(bool bOn)

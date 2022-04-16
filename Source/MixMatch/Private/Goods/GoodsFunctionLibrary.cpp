@@ -48,6 +48,24 @@ TArray<FGoodsQuantity> UGoodsFunctionLibrary::AddGoodsQuantities(const TArray<FG
 	return TotalGoods;
 }
 
+
+void UGoodsFunctionLibrary::AddToGoodsQuantities(TArray<FGoodsQuantity>& GoodsQuantitiesOne, const TArray<FGoodsQuantity>& GoodsQuantitiesTwo, const bool bNegateGoodsQuantitiesTwo)
+{
+	FGoodsQuantity* TmpGoodsQuantity;
+	for (FGoodsQuantity GoodsTwo : GoodsQuantitiesTwo)
+	{
+		float Delta = bNegateGoodsQuantitiesTwo ? -1.0f * GoodsTwo.Quantity : GoodsTwo.Quantity;
+		TmpGoodsQuantity = GoodsQuantitiesOne.FindByKey(GoodsTwo.Name);
+		if (TmpGoodsQuantity) {
+			TmpGoodsQuantity->Quantity = TmpGoodsQuantity->Quantity + Delta;
+		}
+		else {
+			GoodsQuantitiesOne.Add(FGoodsQuantity(GoodsTwo.Name, GoodsTwo.Quantity));
+		}
+	}
+}
+
+
 FGoodsQuantity UGoodsFunctionLibrary::GoodsQuantityFromRange(FRandomStream& RandStream, const FGoodsQuantityRange& QuantityRange, const float QuantityScale /* 0.0 - 1.0 */)
 {
 	FGoodsQuantity Goods(QuantityRange.GoodsName, 0.0f);

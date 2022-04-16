@@ -4,9 +4,10 @@
 #include "MMBlock.h"
 #include "HeadMountedDisplayFunctionLibrary.h"
 #include "Camera/CameraComponent.h"
-#include "GameFramework/PlayerController.h"
+#include "MMPlayerController.h"
 #include "Engine/World.h"
 #include "DrawDebugHelpers.h"
+#include "MMEnums.h"
 
 AMMPawn::AMMPawn()
 	: Super()
@@ -17,8 +18,8 @@ AMMPawn::AMMPawn()
 void AMMPawn::Tick(float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);
-
-	if (APlayerController* PC = Cast<APlayerController>(GetController()))
+	AMMPlayerController* PC = GetController<AMMPlayerController>();
+	if (PC && PC->GetLastInputContext() == EMMInputContext::InPlayGrid)
 	{
 		if (UHeadMountedDisplayFunctionLibrary::IsHeadMountedDisplayEnabled())
 		{
@@ -71,34 +72,38 @@ void AMMPawn::TriggerClick()
 
 void AMMPawn::TraceForBlock(const FVector& Start, const FVector& End, bool bDrawDebugHelpers)
 {
-	FHitResult HitResult;
-	GetWorld()->LineTraceSingleByChannel(HitResult, Start, End, ECC_Visibility);
-	if (bDrawDebugHelpers)
+	AMMPlayerController* PC = GetController<AMMPlayerController>();
+	if (PC && PC->GetLastInputContext() == EMMInputContext::InPlayGrid)
 	{
-		DrawDebugLine(GetWorld(), Start, HitResult.Location, FColor::Red);
-		DrawDebugSolidBox(GetWorld(), HitResult.Location, FVector(20.0f), FColor::Red);
-	}
-	if (HitResult.Actor.IsValid())
-	{
-		AMMBlock* HitBlock = Cast<AMMBlock>(HitResult.Actor.Get());
-		if (CurrentBlockFocus != HitBlock)
+		FHitResult HitResult;
+		GetWorld()->LineTraceSingleByChannel(HitResult, Start, End, ECC_Visibility);
+		if (bDrawDebugHelpers)
 		{
-			if (IsValid(CurrentBlockFocus))
+			DrawDebugLine(GetWorld(), Start, HitResult.Location, FColor::Red);
+			DrawDebugSolidBox(GetWorld(), HitResult.Location, FVector(20.0f), FColor::Red);
+		}
+		if (HitResult.Actor.IsValid())
+		{
+			AMMBlock* HitBlock = Cast<AMMBlock>(HitResult.Actor.Get());
+			if (CurrentBlockFocus != HitBlock)
 			{
+				if (IsValid(CurrentBlockFocus))
+				{
+					CurrentBlockFocus->Highlight(false);
+				}
+				if (IsValid(HitBlock))
+				{
+					HitBlock->Highlight(true);
+				}
+				CurrentBlockFocus = HitBlock;
+			}
+		}
+		else if (CurrentBlockFocus)
+		{
+			if (IsValid(CurrentBlockFocus)) {
 				CurrentBlockFocus->Highlight(false);
 			}
-			if (IsValid(HitBlock))
-			{
-				HitBlock->Highlight(true);
-			}
-			CurrentBlockFocus = HitBlock;
+			CurrentBlockFocus = nullptr;
 		}
-	}
-	else if (CurrentBlockFocus)
-	{
-		if (IsValid(CurrentBlockFocus)) {
-			CurrentBlockFocus->Highlight(false);
-		}
-		CurrentBlockFocus = nullptr;
 	}
 }

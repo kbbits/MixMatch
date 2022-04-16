@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
+#include "PlayerSaveData.h"
 #include "Goods/GoodsQuantity.h"
 #include "CraftingRecipe.h"
 #include "RecipeManagerComponent.generated.h"
@@ -79,6 +80,10 @@ public:
 	UFUNCTION(BlueprintPure)
 	int32 GetRecipeLevel(const FName& RecipeName);
 
+	/** Get the current level of all known recipes */
+	UFUNCTION(BlueprintPure)
+	TMap<FName, int32> GetRecipeLevels();
+
 	/** Increases the recipe's current level by the IncrementAmount. Default = 1 */
 	UFUNCTION(BlueprintCallable)
 	int32 IncrementRecipeLevel(const FName& RecipeName, const int32 IncrementAmount = 1);
@@ -109,6 +114,10 @@ public:
 	UFUNCTION(BlueprintPure)
 	int32 GetRecipeCraftingCount(const FName& RecipeName);
 
+	/** @returns The number of times the recipe has been crafted by the player. */
+	UFUNCTION(BlueprintPure)
+	TMap<FName, int32> GetRecipeCraftingCounts();
+
 	/** Gets BaseGoods as the total goods tagged with "Resource" needed to produce all preceding ingredient goods. 
 	 *	Returns true if recipe was found, false otherwise. */
 	UFUNCTION(BlueprintPure)
@@ -133,6 +142,12 @@ public:
 	/** Returns the number of times the given recipe could be crafted with the submitted goods quantities */
 	UFUNCTION(BlueprintPure)
 	int32 CraftableCountForGoods(const TArray<FGoodsQuantity>& GoodsQuantities, const FCraftingRecipe& Recipe);
+
+	/** Updates save data from this component's properties. */
+	bool GetSaveData(FPlayerSaveData& SaveData);
+
+	/** Updates this component with data from SaveData. */
+	void UpdateFromSaveData(const FPlayerSaveData& SaveData);
 
 protected:
 

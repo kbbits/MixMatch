@@ -1314,7 +1314,8 @@ bool AMMPlayGrid::ResolveMatches()
 	if (TotalGoods.Num() > 0)
 	{
 		AMMPlayerController* PC = Cast<AMMPlayerController>(UGameplayStatics::GetPlayerController(GetWorld(), 0));
-		PC->GoodsInventory->AddSubtractGoodsArray(TotalGoods, false, true);
+		PC->CollectGoods(TotalGoods);
+		//PC->GoodsInventory->AddSubtractGoodsArray(TotalGoods, false, true);
 	}
 	// Call the notification delegate
 	OnMatchAwards.Broadcast(BlockMatches);

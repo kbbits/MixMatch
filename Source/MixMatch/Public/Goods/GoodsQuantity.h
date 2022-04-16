@@ -75,6 +75,7 @@ public:
 	}
 };
 
+
 USTRUCT(BlueprintType)
 struct FGoodsQuantitySet
 {
@@ -85,6 +86,7 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame)
 		TArray<FGoodsQuantity> Goods;
 };
+
 
 USTRUCT(BlueprintType)
 struct FNamedGoodsQuantitySet

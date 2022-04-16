@@ -25,7 +25,7 @@ public:
 
 	// Thumbnail for GUI use
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame)
-		TAssetPtr<UTexture2D> Thumbnail;
+		TSoftObjectPtr<UTexture2D> Thumbnail;
 
 	// If this value is present it will be used during auto-value calculation instead of calculating it.
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame)

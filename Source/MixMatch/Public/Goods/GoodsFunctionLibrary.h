@@ -29,6 +29,11 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Goods")
 		static TArray<FGoodsQuantity> AddGoodsQuantities(const TArray<FGoodsQuantity>& GoodsQuantitiesOne, const TArray<FGoodsQuantity>& GoodsQuantitiesTwo, const bool bNegateGoodsQuantitiesTwo = false);
 
+	// Adds the quantities of GoodsQuantitiesTwo to the GoodsQuantitiesOne array, in-place.
+	// bNegateGoodsQuantitesTwo - if true, this will subtract GoodsQuantitiesTwo from GoodQuantitiesOne.
+	UFUNCTION(BlueprintCallable, Category = "Goods")
+		static void AddToGoodsQuantities(UPARAM(ref) TArray<FGoodsQuantity>& GoodsQuantitiesOne, const TArray<FGoodsQuantity>& GoodsQuantitiesTwo, const bool bNegateGoodsQuantitiesTwo = false);
+
 
 	// Transform a goods quantity range to a goods quantity. 
 	// If optional QuantityScale is provided, the quantity will be mapped from min to max according to the scale (0-1) instead of determining randomly.
