@@ -257,7 +257,11 @@ FBoxSphereBounds ACraftingToolActor::GetVisibleGridBounds_Implementation()
 
 void ACraftingToolActor::HandleClick_Implementation()
 {
-	// Base class does nothing for now.
+	AMMPlayerController* PC = Cast<AMMPlayerController>(UGameplayStatics::GetPlayerController(GetWorld(), 0));
+	if (PC && PC->GetLastInputContext() == EMMInputContext::None)
+	{
+		PC->HandleToolClicked(this);
+	}
 }
 
 

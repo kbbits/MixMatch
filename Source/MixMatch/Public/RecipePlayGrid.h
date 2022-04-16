@@ -15,6 +15,10 @@ class ARecipePlayGrid : public AMMPlayGrid
 
 public:
 
+	/** Inventory to hold ingredient Goods for this grid. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
+	class UInventoryActorComponent* InputGoodsInventory;
+
 	/** The "ideal" number of different block types that this grid should generate. 
 	 *  Default is 4. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
@@ -32,8 +36,8 @@ public:
 	FString NonIngredientBlockTypeSetBaseName;
 
 	/** When generating blocks, blocks that represent ingredients for the current recipe will only be generated if they 
-	 *  exist in this grid's inventory. Also, when these ingredient blocks are spawned, their respective goods will be 
-	 *  removed from the grid's inventory. */
+	 *  exist in this grid's input inventory. Also, when these ingredient blocks are spawned, their respective goods will be 
+	 *  removed from the grid's input inventory. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	bool bIngredientsFromInventory = false;
 
@@ -54,6 +58,9 @@ public:
 	ARecipePlayGrid();
 
 	virtual void StartPlayGrid_Implementation() override;
+
+	/** This returns all unused ingredients to player inventory. Does not call base class. */
+	virtual void StopPlayGrid_Implementation() override;
 
 	/** Set the grid's reference the recipe manager for it to use. */
 	UFUNCTION(BlueprintCallable)
@@ -79,6 +86,10 @@ public:
 	/** Helper to get the current recipe's level from player */
 	UFUNCTION(BlueprintPure)
 	int32 GetRecipeLevel();
+
+	/** Crafts a recipe with ingredients from grid's inventory and puts crafted goods in player's inventory. */
+	UFUNCTION(BlueprintCallable)
+	bool CraftRecipe(const FCraftingRecipe& Recipe);
 
 	/** The percent chance (0.0-1.0) that a dropped-in block will be a recipe ingredient block. 
 	 * This is based on recipe level. */

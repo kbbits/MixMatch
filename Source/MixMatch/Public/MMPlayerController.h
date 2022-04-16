@@ -12,6 +12,7 @@
 #include "MMPlayGrid.h"
 #include "MMPlayerController.generated.h"
 
+class ACraftingToolActor;
 
 // Event dispatcher for when CurrentGrid changes to different grid
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnCurrentGridChanged, const AMMPlayGrid*, NewCurrentGrid);
@@ -84,6 +85,9 @@ protected:
 	UPROPERTY()
 	AMMPlayGrid* CurrentGrid = nullptr;
 
+	UPROPERTY(BlueprintReadWrite)
+	ACraftingToolActor* CurrentTool = nullptr;
+
 	// Ordered list (stack) of input contexts.
 	UPROPERTY(BlueprintReadOnly)
 	TArray<EMMInputContext> InputContextStack;
@@ -130,8 +134,12 @@ public:
 	UFUNCTION(BlueprintCallable)
 	void SetRecipeLevel(const FName RecipeName, const int32 NewLevel);
 
-	/** Override in BP to set up grid, inventory, etc. for a grid before grid play actually starts. */
-	UFUNCTION(BlueprintImplementableEvent, BlueprintCallable)
+	UFUNCTION(BlueprintCallable)
+	void HandleToolClicked(UPARAM(ref) ACraftingToolActor* ClickedTool);
+
+	/** Override in BP to set up grid, inventory, etc. for a grid before grid play actually starts. 
+	 *  Base class just calls OnPlayGrid. */
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable)
 	void OnPrePlayGrid();
 
 	/** Base class calls StartPlayGrid on current grid and fires OnPlayGridStarted event. */

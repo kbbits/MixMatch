@@ -13,6 +13,11 @@
 ARecipePlayGrid::ARecipePlayGrid()
 {
 	NonIngredientBlockTypeSetBaseName = FString(TEXT("Default"));
+	// Input Inventory
+	InputGoodsInventory = CreateDefaultSubobject<UInventoryActorComponent>(TEXT("InputGoodsInventory"));
+	if (InputGoodsInventory) {
+		AddOwnedComponent(InputGoodsInventory);
+	}
 }
 
 
@@ -20,6 +25,22 @@ void  ARecipePlayGrid::StartPlayGrid_Implementation()
 {
 	InitIngredientBlockDropOdds(true);
 	Super::StartPlayGrid_Implementation();
+}
+
+
+void ARecipePlayGrid::StopPlayGrid_Implementation()
+{
+	// Don't do base class stuff. Insead:
+	// Give back unused ingredient inventory.
+	AMMPlayerController* PC = Cast<AMMPlayerController>(UGameplayStatics::GetPlayerController(GetWorld(), 0));
+	if (PC)
+	{
+		TArray<FGoodsQuantity> RemainingIngredients;
+		InputGoodsInventory->GetAllGoods(RemainingIngredients);
+		PC->GoodsInventory->AddSubtractGoodsArray(RemainingIngredients, false);
+		InputGoodsInventory->ClearAllInventory();
+		GoodsInventory->ClearAllInventory();
+	}
 }
 
 
@@ -79,9 +100,27 @@ int32 ARecipePlayGrid::GetRecipeLevel()
 }
 
 
+bool ARecipePlayGrid::CraftRecipe(const FCraftingRecipe& Recipe)
+{
+	AMMPlayerController* PC = Cast<AMMPlayerController>(UGameplayStatics::GetPlayerController(GetWorld(), 0));
+	if (PC && GoodsInventory->AddSubtractGoodsArray(Recipe.CraftingInputs, true, true))
+	{
+		TArray<FGoodsQuantity> CraftedGoods;
+		if (RecipeManager->GetGoodsForRecipe(Recipe, CraftedGoods))
+		{
+			PC->GoodsInventory->AddSubtractGoodsArray(CraftedGoods, false, true);
+			PC->RecipeManager->IncrementRecipeCraftingCount(Recipe.Name);
+			PC->OnRecipeCrafted.Broadcast(Recipe, 1);
+			return true;
+		}
+	}
+	return false;
+}
+
+
 float ARecipePlayGrid::GetChanceForIngredientBlock_Implementation()
 {
-	if (bIngredientsFromInventory && (IngredientBlockDropOdds.Num() == 0 || GoodsInventory->IsEmpty())) return 0.f;
+	if (bIngredientsFromInventory && (IngredientBlockDropOdds.Num() == 0 || InputGoodsInventory->IsEmpty())) return 0.f;
 	float NormalPercent = ((float)GetRecipe().CraftingInputs.Num()) / FMath::Max(1.f, (float)(TargetBlockTypes));
 	NormalPercent *= IngredientDropFactor;
 	float MaxPercent = NormalPercent + ((1 - NormalPercent) * 0.25f);
@@ -195,14 +234,14 @@ AMMBlock* ARecipePlayGrid::AddRandomBlockInCell(const FAddBlockContext& BlockCon
 					TArray<FGoodsQuantity> BlockAwardGoods = NewBlock->GetBaseMatchGoods(GameMode->GetGoodsDropper(), 0.5f);
 					TArray<FGoodsQuantity> IngredientAwardGoods = UGoodsFunctionLibrary::CountsInGoodsQuantities(GetRecipe().CraftingInputs, BlockAwardGoods);
 					// Subtract block's ingredient match goods from grid's inventory.
-					if (!GoodsInventory->AddSubtractGoodsArray(IngredientAwardGoods, true)) {
-						UE_LOG(LogMMGame, Warning, TEXT("RecipePlayGrid::AddRandomBlockInCell - cannot deduct goods from grid inventory for block %s with block type %s"), *NewBlock->GetName(), *NewBlock->GetBlockType().Name.ToString());
+					if (!InputGoodsInventory->AddSubtractGoodsArray(IngredientAwardGoods, true)) {
+						UE_LOG(LogMMGame, Warning, TEXT("RecipePlayGrid::AddRandomBlockInCell - cannot deduct goods from grid input inventory for block %s with block type %s"), *NewBlock->GetName(), *NewBlock->GetBlockType().Name.ToString());
 					}
 					int32 Index = IngredientBlockDropOdds.IndexOfByKey(BlockTypeName);
-					if (Index != INDEX_NONE && !GoodsInventory->HasAllGoods(IngredientAwardGoods)) {
+					if (Index != INDEX_NONE && !InputGoodsInventory->HasAllGoods(IngredientAwardGoods)) {
 						IngredientBlockDropOdds.RemoveAt(Index);
 					}
-					if (GoodsInventory->IsEmpty() || IngredientBlockDropOdds.Num() == 0) {
+					if (InputGoodsInventory->IsEmpty() || IngredientBlockDropOdds.Num() == 0) {
 						bPauseNewBlocks = true;
 						IngredientBlockDropOdds.Empty();
 					}
@@ -239,7 +278,7 @@ void ARecipePlayGrid::InitIngredientBlockDropOdds(const bool bForceRefresh)
 			continue;
 		}
 		TArray<FGoodsQuantity> BlockAwardGoods = GameMode->GetGoodsDropper()->EvaluateGoodsDropSet(BlockType.MatchDropGoods, 0.5f);
-		if (!bIngredientsFromInventory || GoodsInventory->HasAllGoods(BlockAwardGoods))
+		if (!bIngredientsFromInventory || InputGoodsInventory->HasAllGoods(BlockAwardGoods))
 		{
 			// Get the recipe that produces the ingredient goods
 			FCraftingRecipe IngredientRecipe = GetRecipeManager()->GetRecipeForGoodsName(IngredientGoods.Name, bFound);
@@ -248,7 +287,6 @@ void ARecipePlayGrid::InitIngredientBlockDropOdds(const bool bForceRefresh)
 				TArray<FGoodsQuantity> RecipeGoods;
 				if (GetRecipeManager()->GetGoodsForRecipe(IngredientRecipe, RecipeGoods, 0.5, true))
 				{
-
 					// Determine the ratio of ingredient goods produced by it's producing recipe to the quantity required by the
 					// recipe being crafted. This ratio will be the ingredient's weight in our weighted list pick.
 					// i.e. The more ingredients this recipe needs compared to how many the recipe that produces the goods, the higher the chance 
@@ -268,7 +306,7 @@ void ARecipePlayGrid::InitIngredientBlockDropOdds(const bool bForceRefresh)
 		else {
 			UE_CLOG(bDebugLog, LogMMGame, Warning, TEXT("RecipePlayGrid::InitIngredientGoodsDropOdds - Grid does not have inventory for recipe %s"), *GetRecipe().Name.ToString());
 			for (FGoodsQuantity AwardGQ : BlockAwardGoods) {
-				UE_CLOG(bDebugLog, LogMMGame, Warning, TEXT("                                              Need %0.f %s.  Have %0.f"), AwardGQ.Quantity, *AwardGQ.Name.ToString(), GoodsInventory->GetGoodsCount(AwardGQ.Name));
+				UE_CLOG(bDebugLog, LogMMGame, Warning, TEXT("                                              Need %0.f %s.  Have %0.f"), AwardGQ.Quantity, *AwardGQ.Name.ToString(), InputGoodsInventory->GetGoodsCount(AwardGQ.Name));
 			}
 		}
 	}

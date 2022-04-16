@@ -149,6 +149,10 @@ public:
 	UFUNCTION(BlueprintPure)
 	bool IsEmpty();
 	
+	// Clears the inventory and the snapshot.
+	UFUNCTION(BlueprintCallable)
+	void ClearAllInventory();
+
 	// [Server]
 	// Empties the snapshot inventory. 
 	// This will call client if needed to handle replication.

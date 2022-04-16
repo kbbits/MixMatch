@@ -5,6 +5,7 @@
 #include "Kismet/GameplayStatics.h"
 #include "Goods/GoodsFunctionLibrary.h"
 #include "../MixMatch.h"
+#include "CraftingToolActor.h"
 
 
 AMMPlayerController::AMMPlayerController()
@@ -160,19 +161,62 @@ void AMMPlayerController::SetRecipeLevel(const FName RecipeName, const int32 New
 }
 
 
+void AMMPlayerController::HandleToolClicked(ACraftingToolActor* ClickedTool)
+{
+	if (GetLastInputContext() != EMMInputContext::None)
+	{
+		return;
+	}
+	if (IsValid(CurrentTool) && CurrentTool != ClickedTool)
+	{
+		CurrentTool->DestroyGrid();
+		CurrentTool = nullptr;
+	}
+	CurrentTool = ClickedTool;
+	ClearCurrentGrid();
+	if (IsValid(CurrentTool))
+	{
+		CurrentTool->SpawnGrid();
+		CurrentTool->SpawnGridBackground();
+		SetCurrentGrid(CurrentTool->CurrentGrid);
+	}
+	AddInputContext(EMMInputContext::InPlayGrid);
+	OnPrePlayGrid();
+}
+
+
+void AMMPlayerController::OnPrePlayGrid_Implementation()
+{
+	OnPlayGrid();
+}
+
 void AMMPlayerController::OnPlayGrid_Implementation()
 {
-	GetCurrentGrid()->StartPlayGrid();
-	AddInputContext(EMMInputContext::InPlayGrid);
-	OnPlayGridStarted.Broadcast(GetCurrentGrid());
+	if (GetCurrentGrid())
+	{
+		GetCurrentGrid()->StartPlayGrid();
+		OnPlayGridStarted.Broadcast(GetCurrentGrid());
+	}
 }
 
 
 void AMMPlayerController::OnStopGrid_Implementation()
 {
-	GetCurrentGrid()->StopPlayGrid();
-	RemoveInputContext(EMMInputContext::InPlayGrid);
-	OnPlayGridStopped.Broadcast(GetCurrentGrid());
+	if (GetCurrentGrid())
+	{
+		GetCurrentGrid()->StopPlayGrid();
+		OnPlayGridStopped.Broadcast(GetCurrentGrid());
+		if (CurrentTool) 
+		{
+			CurrentTool->DestroyGrid();
+			CurrentTool = nullptr;
+		}
+		else {
+			GetCurrentGrid()->DestroyGrid();
+		}		
+		ClearCurrentGrid();
+		RemoveInputContext(EMMInputContext::InPlayGrid);
+	}	
 }
 
 

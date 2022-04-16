@@ -211,7 +211,8 @@ public:
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable)
 	void StartPlayGrid();
 
-	UFUNCTION(BlueprintImplementableEvent)
+	/** This gives all the grid's goods inventory to the player. */
+	UFUNCTION(BlueprintNativeEvent)
 	void StopPlayGrid();
 
 	/** Minimum number of matching blocks to qualify as a match */

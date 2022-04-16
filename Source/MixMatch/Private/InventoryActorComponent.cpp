@@ -593,6 +593,15 @@ bool UInventoryActorComponent::IsEmpty()
 }
 
 
+void UInventoryActorComponent::ClearAllInventory()
+{
+	TArray<FGoodsQuantity> TmpTotalGoods;
+	GetAllGoods(TmpTotalGoods);
+	AddSubtractGoodsArray(TmpTotalGoods, true, false);
+	ServerClearSnapshotInventory();
+}
+
+
 void UInventoryActorComponent::ServerClearSnapshotInventory_Implementation()
 {
 	SnapshotInventory.Empty();

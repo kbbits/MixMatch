@@ -184,6 +184,19 @@ void AMMPlayGrid::StartPlayGrid_Implementation()
 }
 
 
+void AMMPlayGrid::StopPlayGrid_Implementation()
+{
+	// Give goods inventory to player
+	AMMPlayerController* PC = Cast<AMMPlayerController>(UGameplayStatics::GetPlayerController(GetWorld(), 0));
+	if (PC)
+	{
+		TArray<FGoodsQuantity> TotalGoods;
+		GoodsInventory->GetAllGoods(TotalGoods);
+		PC->CollectGoods(TotalGoods);
+		GoodsInventory->ClearAllInventory();
+	}
+}
+
 void AMMPlayGrid::BeginPlay()
 {
 	Super::BeginPlay();
@@ -1314,8 +1327,8 @@ bool AMMPlayGrid::ResolveMatches()
 	if (TotalGoods.Num() > 0)
 	{
 		AMMPlayerController* PC = Cast<AMMPlayerController>(UGameplayStatics::GetPlayerController(GetWorld(), 0));
-		PC->CollectGoods(TotalGoods);
-		//PC->GoodsInventory->AddSubtractGoodsArray(TotalGoods, false, true);
+		GoodsInventory->AddSubtractGoodsArray(TotalGoods, false);
+		//PC->CollectGoods(TotalGoods);
 	}
 	// Call the notification delegate
 	OnMatchAwards.Broadcast(BlockMatches);

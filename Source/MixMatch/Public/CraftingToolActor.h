@@ -37,6 +37,11 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	float GridMarginV = 0.f;
 
+	/** The grid this tool is working with.
+	 *  TODO: Is this needed?  */
+	UPROPERTY(BlueprintReadWrite)
+	class AMMPlayGrid* CurrentGrid;
+
 protected:
 
 	/** A reference to the active recipe manager. Currently this would be a ref to the recipe manager on the player controller. */
@@ -46,11 +51,6 @@ protected:
 	/** The current recipe this tool will craft */
 	UPROPERTY(BlueprintGetter=GetRecipe)
 	FCraftingRecipe CurrentRecipe;
-
-	/** The grid this tool is working with.
-	 *  TODO: Is this needed?  */
-	UPROPERTY(BlueprintReadWrite)
-	class AMMPlayGrid* CurrentGrid;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	bool bDebugLog = true;
@@ -168,7 +168,7 @@ public:
 
 protected:
 
-	/** Base class does nothing (for now) */
+	/** Base class calls MMPlayerController::HandleToolClicked */
 	UFUNCTION(BlueprintCallable, BlueprintNativeEvent)
 	void HandleClick();
 
