@@ -17,6 +17,10 @@ class ACraftingToolActor : public AActor
 
 public:
 
+	/** Name of the tool */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
+	FText DisplayName;
+
 	/** This tool can craft recipes that have at least one of these categories. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
 	TArray<FName> CraftableRecipeCategories;
@@ -115,7 +119,7 @@ public:
 	int32 GetMaxPlayerMoves();
 
 	/** The target number of different block types for the tool. 
-	 *   Base class just returns 5.  */
+	 *  For recipe grids this comes from the recipe. Basic play grids use this value. Base class returns 4. Override in blueprint to change.  */
 	UFUNCTION(BlueprintCallable, BlueprintNativeEvent)
 	int32 GetTargetBlockTypeCount();
 
@@ -137,7 +141,8 @@ public:
 	UFUNCTION(BlueprintNativeEvent)
 	float GetNewBlockDropInHeight();
 
-	/** Gets the default, starting BlockTypeSet name that should be set on grids when this tool spawns them. 
+	/** Gets the default, base BlockTypeSet name that should be set on grids when this tool spawns them.
+	 *  For RecipePlay grids this is overwritten on the grid with value from the recipe. 
 	 *  Default = "Default"  */
 	UFUNCTION(BlueprintNativeEvent)
 	FName GetDefaultBlockTypeSetName();

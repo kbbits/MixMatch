@@ -53,10 +53,10 @@ public:
 	bool bMatchedVertical = false;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = Block)
-	TAssetPtr<USoundBase> MatchSound;
+	TSoftObjectPtr<USoundBase> MatchSound;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = Block)
-	TAssetPtr<USoundBase> StopMoveSound;
+	TSoftObjectPtr<USoundBase> StopMoveSound;
 
 	/** Optional curve modifying block's movement speed along it's travels. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = Block)

@@ -6,24 +6,26 @@
 #include "BlockMatch.h"
 #include "MatchAction.h"
 #include "MMEnums.h"
-#include "MatchActionSpawnBlock.generated.h"
+#include "MatchActionDestroyColumn.generated.h"
 
 
 /**
  */
 UCLASS(BlueprintType, Blueprintable)
-class MIXMATCH_API UMatchActionSpawnBlock : public UMatchAction
+class MIXMATCH_API UMatchActionDestroyColumn : public UMatchAction
 {
 	GENERATED_BODY()
 
 public:
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	EMMBlockLocation LocationType;
+	/** The Perform() method will fill this in so that subclasses can access. */
+	UPROPERTY(BlueprintReadOnly)
+		TArray<FIntPoint> DestroyedBlockCoords;
 
+	
 public:
 	// Constructor
-	UMatchActionSpawnBlock();
+	UMatchActionDestroyColumn();
 
 	virtual bool Perform_Implementation(const UBlockMatch* Match, const FMatchActionType& MatchActionType, const AMMBlock* TriggeringBlock) override;
 };

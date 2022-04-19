@@ -3,11 +3,17 @@
 UENUM(BlueprintType)
 enum class EMMInputContext : uint8
 {
-	None		UMETA(DisplayName = "None"),
-	Saving		UMETA(DisplayName = "Saving"),
-	Loading		UMETA(DisplayName = "Loading"),
-	InPlayGrid	UMETA(DisplayName = "InPlayGrid"),
-	InMenu		UMETA(DisplayName = "InMenu")
+	None			UMETA(DisplayName = "None"),
+	// Game is saving
+	Saving			UMETA(DisplayName = "Saving"),
+	// Game is loading
+	Loading			UMETA(DisplayName = "Loading"),
+	// Normal playtime in a grid
+	InPlayGrid		UMETA(DisplayName = "InPlayGrid"),
+	// When something requires the user to make one or more selections, usually a cell in the grid. (not normal block swapping clicks)
+	EffectSelect	UMETA(DisplayName = "EffectSelect"),
+	// A "modal" menu is open
+	InMenu			UMETA(DisplayName = "InMenu")
 };
 
 
@@ -71,7 +77,7 @@ enum class EMMBlockLocation : uint8
 {
 	/* Spawn block above top row */
 	TopRow			UMETA(DisplayName = "Top Row"),
-	/* Spawn block in center of a block match */
+	/* Spawn block in the block match, starting at center moving out */
 	InMatch			UMETA(DisplayName = "In Match"),
 	/* Spawn block in cell that contained the block moved by player. If match contains no block moved by player, use InMatch behavior. */
 	OnMovedBlock	UMETA(DisplayName = "On Moved Block"),
@@ -79,4 +85,16 @@ enum class EMMBlockLocation : uint8
 	//RandomOpen		UMETA(DisplayName = "Random Open"),
 	/* Spawn block in a random cell, excluding cells with immobile blocks. New block replaces any existing block. */
 	//RandomReplace	UMETA(DisplayName = "Random Replace")
+};
+
+
+UENUM(BlueprintType)
+enum class EMMMatchActionCategory : uint8
+{
+	/* This action doesn't destroy, spawn or replace blocks. */
+	General			UMETA(DisplayName = "General"),
+	/* This action destroys blocks. */
+	DestroysBlocks	UMETA(DisplayName = "DestroysBlocks"),
+	/* This action spawns or replaces blocks. */
+	SpawnsBlocks	UMETA(DisplayName = "SpawnsBlocks")
 };

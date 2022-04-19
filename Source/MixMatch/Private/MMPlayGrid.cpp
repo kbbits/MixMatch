@@ -1326,9 +1326,9 @@ bool AMMPlayGrid::ResolveMatches()
 	AddScore(TotalScoreToAdd);
 	if (TotalGoods.Num() > 0)
 	{
-		AMMPlayerController* PC = Cast<AMMPlayerController>(UGameplayStatics::GetPlayerController(GetWorld(), 0));
-		GoodsInventory->AddSubtractGoodsArray(TotalGoods, false);
+		//AMMPlayerController* PC = Cast<AMMPlayerController>(UGameplayStatics::GetPlayerController(GetWorld(), 0));
 		//PC->CollectGoods(TotalGoods);
+		GoodsInventory->AddSubtractGoodsArray(TotalGoods, false);		
 	}
 	// Call the notification delegate
 	OnMatchAwards.Broadcast(BlockMatches);
@@ -1337,7 +1337,7 @@ bool AMMPlayGrid::ResolveMatches()
 }
 
 
-bool AMMPlayGrid::PerformActionsForMatch(UBlockMatch* Match)
+bool AMMPlayGrid::PerformActionsForMatch(UBlockMatch* Match, const bool bDestroyOnly)
 {
 	check(Match);
 	bool bAnyPerformed = false;
@@ -1349,39 +1349,56 @@ bool AMMPlayGrid::PerformActionsForMatch(UBlockMatch* Match)
 	if (!Match->Blocks.IsValidIndex(0) || Match->Blocks[0]->Grid() == nullptr) {
 		return false;
 	}
-	TArray<FName> ProcessedBlockTypeNames;
+	TMap<FName, int32> ProcessedActions;
 	int32 BonusMatchSize = MatchSize - Match->Blocks[0]->Grid()->GetMinimumMatchSize();
 	for (AMMBlock* Block : Match->Blocks)
 	{
-		bAnyPerformedForBlock = false;
-		// Process each block type actions only once per block type
-		if (!ProcessedBlockTypeNames.Contains(Block->GetBlockType().Name))
+		for (FMatchActionTrigger Trigger : Block->GetBlockType().MatchActions)
 		{
-			for (FMatchActionTrigger Trigger : Block->GetBlockType().MatchActions)
+			int32 TimesPerformed = 0;
+			int32 PerformLimit = Match->Blocks.Num();
+			if (ProcessedActions.Contains(Trigger.ActionType.Name)) {
+				TimesPerformed = ProcessedActions[Trigger.ActionType.Name];
+			}
+			switch (Trigger.ActionType.ActionQuantityType)
 			{
-				if (BonusMatchSize >= Trigger.MinBonusSizeToTrigger && BonusMatchSize <= Trigger.MaxBonusSizeToTrigger) 
+			case EMMBlockQuantity::PerMatch:
+				PerformLimit = 1;
+				break;
+			case EMMBlockQuantity::PerBlockOverMin:
+				PerformLimit = BonusMatchSize;
+				break;
+			}
+			// Process each block type action only the appropriate number of times
+			if (TimesPerformed < PerformLimit)
+			{
+				// Do all destroy actions together OR all other types of actions
+				if ((bDestroyOnly && Trigger.ActionType.ActionCategory == EMMMatchActionCategory::DestroysBlocks) ||
+					(!bDestroyOnly && Trigger.ActionType.ActionCategory != EMMMatchActionCategory::DestroysBlocks))
 				{
-					if (PerformActionType(Trigger.ActionType, Match)) {
-						bAnyPerformedForBlock = bAnyPerformed = true;
+					if (BonusMatchSize >= Trigger.MinBonusSizeToTrigger && BonusMatchSize <= Trigger.MaxBonusSizeToTrigger)
+					{
+						if (PerformActionType(Trigger.ActionType, Match, Block)) {
+							TimesPerformed++;
+							bAnyPerformed = true;
+						}
 					}
 				}
-			}
-			if (bAnyPerformedForBlock) {
-				ProcessedBlockTypeNames.Add(Block->GetBlockType().Name);
-			}
-		}		
+				ProcessedActions.Add(Trigger.ActionType.Name, TimesPerformed);
+			}			
+		}			
 	}
 	return bAnyPerformed;
 }
 
 
-bool AMMPlayGrid::PerformActionType(const FMatchActionType& MatchActionType, const UBlockMatch* Match)
+bool AMMPlayGrid::PerformActionType(const FMatchActionType& MatchActionType, const UBlockMatch* Match, const AMMBlock* TriggeringBlock)
 {
 	UE_CLOG(bDebugLog, LogMMGame, Log, TEXT("MMPlayGrid::PerformActionType - performing %s action for match %s"), *MatchActionType.MatchActionClass->GetName(), *Match->GetName());
 	bool bSuccess = false;
 	UMatchAction* MatchAction = NewObject<UMatchAction>(this, MatchActionType.MatchActionClass);
 	if (MatchAction) {
-		bSuccess = MatchAction->Perform(Match, MatchActionType);
+		bSuccess = MatchAction->Perform(Match, MatchActionType, TriggeringBlock);
 	}
 	MatchAction = nullptr;
 	return bSuccess;
@@ -1577,9 +1594,9 @@ void AMMPlayGrid::AllMatchesFinished()
 	bAllMatchesFinished = false;
 	TArray<AMMPlayGridCell*> DropInCells;
 	UE_CLOG(bDebugLog, LogMMGame, Log, TEXT("MMPlayGrid::AllMatchesFinished - processing %d matches"), BlockMatches.Num());
-	// Perform all match actions
+	// Perform all match actions that destroy blocks
 	for (UBlockMatch* BlockMatch : BlockMatches){
-		PerformActionsForMatch(BlockMatch);
+		PerformActionsForMatch(BlockMatch, true);
 	}
 	// Apply match damage to unmatched neighbors. 
 	for (UBlockMatch* BlockMatch : BlockMatches) 
@@ -1594,6 +1611,10 @@ void AMMPlayGrid::AllMatchesFinished()
 				Neighbor->CurrentBlock->TakeDamage(MatchDamage);
 			}
 		}
+	}
+	// Perform spawn-block and other actions
+	for (UBlockMatch* BlockMatch : BlockMatches) {
+		PerformActionsForMatch(BlockMatch, false);
 	}
 	// When all matches finished, destroy blocks in all the matches.
 	// Also, if cell is still empty add it to list
@@ -1634,9 +1655,7 @@ void AMMPlayGrid::AllMatchesFinished()
 			ToBeUnsettledBlocks.RemoveSingle(Block);
 			BlocksToCheck.RemoveSingle(Block);
 			Block->DestroyBlock();
-			UE_CLOG(bDebugLog, LogMMGame, Log, TEXT("     ##### DESTROYED damaged block at %s"), *BlockCell->GetCoords().ToString());
-			//UE_CLOG(bDebugLog, LogMMGame, Log, TEXT("       Droppping new block in column %d"), BlockCell->GetCoords().X);
-			//DropRandomBlockInColumn(BlockCell);
+			UE_CLOG(bDebugLog, LogMMGame, Log, TEXT("     ##### Destroyed block at %s"), *BlockCell->GetCoords().ToString());
 			//CellBecameOpen(BlockCell);
 			DropInCells.AddUnique(BlockCell);
 		}
@@ -1675,11 +1694,34 @@ void AMMPlayGrid::BlockDestroyedByDamage(AMMBlock* Block)
 {
 	check(Block);
 	UE_CLOG(bDebugLog, LogMMGame, Log, TEXT("MMPlayGrid::BlockDestroyedByDamage - will destroy block %s at %s"), *Block->GetName(), *Block->GetCoords().ToString());
-	if (IsValid(Block) && !Block->IsMatched()) {
+	if (IsValid(Block) && !Block->IsMatched()) 
+	{
+		if (Block->OwningGridCell && Block->OwningGridCell->CurrentBlock == Block) {
+			// Clear the owning grid cell. The cell is now open for other blocks. But don't tell grid yet.
+			Block->OwningGridCell->CurrentBlock = nullptr;
+		}
 		BlocksToDestroy.AddUnique(Block);
 	}
 	else {
 		UE_CLOG(bDebugLog, LogMMGame, Warning, TEXT("MMPlayGrid::BlockDestroyedByDamage - Did not destroy block %s at %d"), *Block->GetName(), *Block->GetCoords().ToString());
+	}
+}
+
+
+void AMMPlayGrid::BlockDestroyedByMatchAction(AMMBlock* Block)
+{
+	check(Block);
+	UE_CLOG(bDebugLog, LogMMGame, Log, TEXT("MMPlayGrid::BlockDestroyedByMatchAction - will destroy block %s at %s"), *Block->GetName(), *Block->GetCoords().ToString());
+	if (IsValid(Block) && !Block->IsMatched()) 
+	{
+		if (Block->OwningGridCell && Block->OwningGridCell->CurrentBlock == Block) {
+			// Clear the owning grid cell. The cell is now open for other blocks. But don't tell grid yet.
+			Block->OwningGridCell->CurrentBlock = nullptr;
+		}
+		BlocksToDestroy.AddUnique(Block);
+	}
+	else {
+		UE_CLOG(bDebugLog, LogMMGame, Warning, TEXT("MMPlayGrid::BlockDestroyedByMatchAction - Did not destroy block %s at %d"), *Block->GetName(), *Block->GetCoords().ToString());
 	}
 }
 

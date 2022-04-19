@@ -1,11 +1,11 @@
 
+#include "Algo/Sort.h"
 #include "BlockMatch.h"
 #include "..\MixMatch.h"
 #include "MMPlayGrid.h"
 #include "MMPlayGridCell.h"
 #include "MMBlock.h"
 #include "MMMath.h"
-
 
 
 /*
@@ -19,47 +19,57 @@ UBlockMatch::UBlockMatch()
 void UBlockMatch::Sort(const bool bForceSort)
 {
 	if ((bSorted && !bForceSort) || Blocks.Num() <= 1) { return; }
-	FIntPoint MinX = FIntPoint(-1, -1);
-	FIntPoint MinY = FIntPoint(-1, -1);
 	int32 MatchSize = Blocks.Num();
 	TArray<AMMBlock*> TmpBlocks;
 	TArray<AMMBlock*> SortedBlocks;
 	int32 StartIndex = -1;
+	// Check any two blocks (this looks at the first two). If they have different Y coords, it is a vertical match. Horizontal otherwise.
+	Orientation = Blocks[0]->GetCoords().Y != Blocks[1]->GetCoords().Y ? EMMOrientation::Vertical : EMMOrientation::Horizontal;
+	StartCoords = FIntPoint(-1, -1);
+	EndCoords = FIntPoint(-1, -1);
 	for (AMMBlock* Block : Blocks)
 	{
 		FIntPoint Coords = Block->GetCoords();
-		if (Orientation == EMMOrientation::Unknown && MinX.X >= 0 && MinY.Y >= 0)
+		if (Orientation == EMMOrientation::Horizontal)
 		{
-			Orientation = Coords.Y != MinY.Y ? EMMOrientation::Vertical : EMMOrientation::Horizontal;
+			// Horiz. match, start coords at lowest X coord, end coords at highest X
+			if (StartCoords.X < 0 || Coords.X < StartCoords.X) {
+				StartCoords = Coords;
+			}
+			if (EndCoords.X < 0 || Coords.X > EndCoords.X) {
+				EndCoords = Coords;
+			}
+			// Validity Check - all should have same Y coord
+			if (Coords.Y != StartCoords.Y) {
+				UE_LOG(LogMMGame, Error, TEXT("BlockMatch::Sort - Found block out of line orientation. Y coord should be %d but was %d"), StartCoords.Y, Coords.Y);
+			}
 		}
-		if (MinX.X < 0 || Coords.X < MinX.X) {
-			MinX = Coords;
-		}
-		if (MinY.Y < 0 || Coords.Y < MinY.Y) {
-			MinY = Coords;
+		else
+		{
+			// Vert. match, start coords at lowest Y coord, end coords and highest Y
+			if (StartCoords.Y < 0 || Coords.Y < StartCoords.Y) {
+				StartCoords = Coords;
+			}
+			if (EndCoords.Y < 0 || Coords.Y > EndCoords.Y) {
+				EndCoords = Coords;
+			}
+			// Validity Check - all should have same X coord
+			if (Coords.X != StartCoords.X) {
+				UE_LOG(LogMMGame, Error, TEXT("BlockMatch::Sort - Found block out of line orientation. X coord should be %d but was %d"), StartCoords.X, Coords.X);
+			}
 		}
 	}
-	StartCoords = Orientation == EMMOrientation::Horizontal ? MinX : MinY;
-	EndCoords = Orientation == EMMOrientation::Horizontal ? StartCoords + FIntPoint(MatchSize - 1, 0) : StartCoords + FIntPoint(0, MatchSize - 1);
-	TmpBlocks = Blocks;
-	SortedBlocks.SetNum(TmpBlocks.Num());
-	for (int32 i = 0; i < TmpBlocks.Num(); i++)
+	// Validitiy check. Distance between start and end should equal the number of blocks in the match - 1.
+	if ((Orientation == EMMOrientation::Horizontal && (EndCoords.X - StartCoords.X != MatchSize - 1)) ||
+		(Orientation == EMMOrientation::Vertical && (EndCoords.Y - StartCoords.Y != MatchSize - 1))) 
 	{
-		if (Orientation == EMMOrientation::Horizontal) {
-			SortedBlocks[TmpBlocks[i]->GetCoords().X - MinX.X] = TmpBlocks[i];
-		}
-		else {
-			SortedBlocks[TmpBlocks[i]->GetCoords().Y - MinY.Y] = TmpBlocks[i];
-		}
+		UE_LOG(LogMMGame, Error, TEXT("BlockMatch::Sort - Found match with start %s end %s but has %d blocks."), *StartCoords.ToString(), *EndCoords.ToString(), MatchSize);
 	}
-	Blocks.Empty();
-	for (AMMBlock* TmpBlock : SortedBlocks) {
-		if (TmpBlock) {
-			Blocks.Add(TmpBlock);
-		}
-		else {
-			break;
-		}
+	if (Orientation == EMMOrientation::Horizontal) {
+		Algo::Sort(Blocks, [](const AMMBlock* a, const AMMBlock* b) { return a->GetCoords().X < b->GetCoords().X; });
+	}
+	else {
+		Algo::Sort(Blocks, [](const AMMBlock* a, const AMMBlock* b) { return a->GetCoords().Y < b->GetCoords().Y; });
 	}
 	bSorted = true;
 }

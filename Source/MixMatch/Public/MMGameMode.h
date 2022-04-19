@@ -39,6 +39,17 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	UDataTable* GoodsDropperTable;
 
+
+	/** When caclulating experience for crafting a recipe higher than Tier 1:
+	 *  total experience = ExperienceTierMultiplier * (the total experience for crafting recipes needed for this recipe's ingredients)
+	 *  Default = 1.1 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
+		float ExperienceTierMultiplier;
+
+	/** When calculating value of goods, this multiplier is applied at each tier of the recipe chain. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
+		float ValueTierMultiplier;
+
 protected:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
@@ -79,25 +90,31 @@ public:
 
 	virtual void BeginPlay() override;
 		
+	/** Retrieve the GoodsType info with the given name. */
 	UFUNCTION(BlueprintPure)
 	FGoodsType GetGoodsData(const FName& GoodsName, bool& bFound);
 
 	UFUNCTION(BlueprintCallable)
 	class UGoodsDropper* GetGoodsDropper();
 
+	/** Retrieve the BlockType info with the given name. */
 	bool GetBlockTypeByName(const FName& BlockTypeName, FBlockType& FoundBlockType);
 	
+	/** Determine the block type name for spawning a new block. Play grids may default to this implementation but often have their own logic. */
 	bool GetRandomBlockTypeNameForCell(FName& FoundBlockTypeName, const FAddBlockContext& BlockContext);
 
 	bool GetBlockClass(TSubclassOf<class AMMBlock>& BlockClass);
 
+	/** how fast, units/second, blocks move on the grid */
 	UFUNCTION(BlueprintPure)
 	float GetBlockMoveSpeed();
 
+	/** Get the list of goods dropped by the given match */
 	UFUNCTION(BlueprintNativeEvent)
 	bool GetGoodsForMatch(const UBlockMatch* Match, FGoodsQuantitySet& MatchGoods);
 	virtual bool GetGoodsForMatch_Implementation(const UBlockMatch* Match, FGoodsQuantitySet& MatchGoods);
 
+	/** Calculate the total score for the given match */
 	UFUNCTION(BlueprintCallable)
 	int32 GetScoreForMatch(const UBlockMatch* Match);
 

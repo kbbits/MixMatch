@@ -25,9 +25,17 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame)
 		TArray<FName> RecipeCategories;
 
-	// User friendly name
+	// User-friendly name
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame)
 		FText DisplayName;
+
+	// The base name of the BlockTypeSet to be used in grids crafting this recipe.
+	// Currently only used when spawning non-ingredient blocks.
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame)
+		FString BlockTypeSetBase;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame)
+		int32 TargetBlockTypeCount = 4;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame)
 		TSoftObjectPtr<UTexture2D> Thumbnail;
@@ -39,7 +47,7 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame)
 		TArray<FName> RecipeRequirements;
 
-	// Goods required to craft one of instance of this recipe
+	// Goods required to craft one instance of this recipe
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame)
 		TArray<FGoodsQuantity> CraftingInputs;
 

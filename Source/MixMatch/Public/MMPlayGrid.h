@@ -149,6 +149,7 @@ protected:
 	UPROPERTY(BlueprintReadOnly)
 	TArray<AMMBlock*> BlocksToCheck;
 
+	/** Blocks to be destroyed during AllMatchesFinished() */
 	UPROPERTY()
 	TArray<AMMBlock*> BlocksToDestroy;
 
@@ -320,7 +321,7 @@ public:
 
 	/* Move a block from one cell to given adjacent cell.
 	 * If target cell is occupied by a moveable block, the blocks will be swapped. 
-	 * Returns true if the move was successful. */
+	 * Returns true if a match was found and the move was successful. */
 	UFUNCTION(BlueprintCallable)
 	bool MoveBlock(UPARAM(ref) AMMBlock* MovingBlock, UPARAM(ref) AMMPlayGridCell* ToCell);
 
@@ -361,10 +362,10 @@ public:
 	bool ResolveMatches();
 
 	UFUNCTION()
-	bool PerformActionsForMatch(UPARAM(ref) UBlockMatch* Match);
+	bool PerformActionsForMatch(UPARAM(ref) UBlockMatch* Match, const bool bDestroyOnly /*only perform destroy actions OR non-destroy actions*/);
 
 	UFUNCTION()
-	bool PerformActionType(const FMatchActionType& MatchActionType, const UBlockMatch* Match);
+	bool PerformActionType(const FMatchActionType& MatchActionType, const UBlockMatch* Match, const AMMBlock* TriggeringBlock);
 
 	//### Check for Locked Grid
 
@@ -393,6 +394,9 @@ public:
 
 	/** Handles destruction of a block via damage. */
 	void BlockDestroyedByDamage(AMMBlock* Block);
+
+	/** Handles destruction of a block via a match action. */
+	void BlockDestroyedByMatchAction(AMMBlock* Block);
 
 	//### Misc.
 

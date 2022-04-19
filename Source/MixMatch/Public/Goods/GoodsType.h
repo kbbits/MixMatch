@@ -27,6 +27,11 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame)
 		TSoftObjectPtr<UTexture2D> Thumbnail;
 
+	// Can this goods type be "used" by the player?
+	// If = true, then a matching UsableGoodsType entry must exist.
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame)
+		bool bUsable = false;
+
 	// If this value is present it will be used during auto-value calculation instead of calculating it.
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame)
 		float OverrideValue;

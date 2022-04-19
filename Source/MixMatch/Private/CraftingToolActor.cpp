@@ -94,18 +94,16 @@ void ACraftingToolActor::SetRecipe(const FName& RecipeName)
 	{
 		if (IsValid(CurrentGrid))
 		{
+			if (GetMaxPlayerMoves() > 0) {
+				CurrentGrid->MaxPlayerMovesCount = GetMaxPlayerMoves();
+			}
+			if (GetMinimumMatchSize() > 2) {
+				CurrentGrid->SetMinimumMatchSize(GetMinimumMatchSize());
+			}
+			CurrentGrid->BlockTypeSetName = GetDefaultBlockTypeSetName();
 			ARecipePlayGrid* RecipeGrid = Cast<ARecipePlayGrid>(CurrentGrid);
-			if (RecipeGrid)	{
-				if (GetMinimumMatchSize() > 2) {
-					RecipeGrid->SetMinimumMatchSize(GetMinimumMatchSize());
-				}
-				if (GetMaxPlayerMoves() > 0) {
-					RecipeGrid->MaxPlayerMovesCount = GetMaxPlayerMoves();
-				}
-				RecipeGrid->BlockTypeSetName = GetDefaultBlockTypeSetName();
-				if (GetTargetBlockTypeCount() > 0) {
-					RecipeGrid->TargetBlockTypes = GetTargetBlockTypeCount();
-				}
+			if (RecipeGrid)	
+			{
 				RecipeGrid->SetRecipe(CurrentRecipe);
 			}
 		}
@@ -139,7 +137,7 @@ int32 ACraftingToolActor::GetMaxPlayerMoves_Implementation()
 
 int32 ACraftingToolActor::GetTargetBlockTypeCount_Implementation()
 {
-	return 5;
+	return 4;
 }
 
 
@@ -209,9 +207,6 @@ void ACraftingToolActor::SpawnGrid()
 		}
 		if (GetCellClass()) {
 			RecipeGrid->CellClass = GetCellClass();
-		}
-		if (GetTargetBlockTypeCount() > 0) {
-			RecipeGrid->TargetBlockTypes = GetTargetBlockTypeCount();
 		}
 	}
 	CurrentGrid = NewGrid;

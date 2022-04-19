@@ -19,6 +19,9 @@ AMMGameMode::AMMGameMode()
 	// use our own player controller class
 	PlayerControllerClass = AMMPlayerController::StaticClass();
 	
+	//Defaults
+	ExperienceTierMultiplier = 1.1f;
+	ValueTierMultiplier = 1.5f;
 	DefaultBlockMoveSpeed = 300;
 }
 

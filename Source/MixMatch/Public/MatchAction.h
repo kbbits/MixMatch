@@ -16,8 +16,8 @@ struct FMatchActionType
 public:
 
 	// Name of this action type. Must be unique.
-	//UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame)
-	//FName Name;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame)
+	FName Name;
 
 	// Class of the action to instantiate and call Perform().
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame)
@@ -34,6 +34,10 @@ public:
 	// Parameter string passed to the action. Not all actions use this.
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame)
 		FString ActionParam;
+
+	/** Used to determine when the action is performed. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame)
+		EMMMatchActionCategory ActionCategory;
 };
 
 
@@ -71,5 +75,5 @@ public:
 	// Perform this action. Default implementation just returns true.
 	// Returns: true if action operation was successful.
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable)
-	bool Perform(const UBlockMatch* Match, const FMatchActionType& MatchActionType);
+	bool Perform(const UBlockMatch* Match, const FMatchActionType& MatchActionType, const AMMBlock* TriggeringBlock);
 };

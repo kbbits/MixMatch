@@ -17,9 +17,6 @@ URecipeManagerComponent::URecipeManagerComponent()
 	// Set this component to be initialized when the game starts, and to be ticked every frame.  You can turn these features
 	// off to improve performance if you don't need them.
 	PrimaryComponentTick.bCanEverTick = false;
-
-	//Defaults
-	ExperienceTierMultiplier = 1.1f;
 }
 
 
@@ -124,18 +121,33 @@ void URecipeManagerComponent::SetRecipeLevel(const FName& RecipeName, const int3
 }
 
 
-float URecipeManagerComponent::GetRecipeLevelUpProgress_Implementation(const FName& RecipeName)
+int32 URecipeManagerComponent::CraftingsRequiredForLevel_Implementation(const int32 RecipeLevel)
+{
+	return (int32)FMath::Pow(RecipeLevel - 1, 2.0f) + 1.0f;
+}
+
+
+float URecipeManagerComponent::GetRecipeLevelUpProgress(const FName& RecipeName)
 {
 	float RecipeLevel = (float)GetRecipeLevel(RecipeName);
 	if (RecipeLevel <= 0) {
 		return 0.f;
 	}
-	float LastCraftingsNeeded = 0.f;
-	float CraftingsNeeded = FMath::Pow(RecipeLevel, 2.f) + 1.f;
-	if (RecipeLevel > 1) {
-		LastCraftingsNeeded = FMath::Pow(RecipeLevel - 1.f, 2.f) + 1.f;
+	float CraftingsNeeded = (float) (CraftingsRequiredForLevel(RecipeLevel + 1) - CraftingsRequiredForLevel(RecipeLevel));
+	if (CraftingsNeeded <= 0.0f) {
+		return 1.0f;
 	}
-	return (((float)GetRecipeCraftingCount(RecipeName)) - LastCraftingsNeeded) / (CraftingsNeeded - LastCraftingsNeeded);
+	return 1.0f - ((float)GetCraftingsRemainingForLevelUp(RecipeName) / CraftingsNeeded);
+}
+
+
+int32 URecipeManagerComponent::GetCraftingsRemainingForLevelUp(const FName& RecipeName)
+{
+	float RecipeLevel = GetRecipeLevel(RecipeName);
+	if (RecipeLevel <= 0) {
+		return 1;
+	}
+	return CraftingsRequiredForLevel(RecipeLevel + 1) - GetRecipeCraftingCount(RecipeName);
 }
 
 
@@ -176,6 +188,13 @@ TMap<FName, int32> URecipeManagerComponent::GetRecipeCraftingCounts()
 	return RecipeCraftings;
 }
 
+int32 URecipeManagerComponent::GetTargetBlockTypeCount(const FCraftingRecipe& Recipe)
+{
+	if (!Recipe.Name.IsNone()) {
+		return Recipe.TargetBlockTypeCount;
+	}
+	return 4;
+}
 
 bool URecipeManagerComponent::GetBaseIngredientsForRecipe(const FName& RecipeName, TArray<FGoodsQuantity>& BaseGoods)
 {
@@ -278,6 +297,107 @@ bool URecipeManagerComponent::GetGoodsForRecipe(const FCraftingRecipe& Recipe, T
 }
 
 
+float URecipeManagerComponent::GetValueForGoods(const FName& GoodsName)
+{
+	return CalculateValueForGoods(GoodsName, GoodsName);
+}
+
+
+float URecipeManagerComponent::GetValueForRecipe(const FName& RecipeName)
+{
+	bool bFound;
+	FCraftingRecipe Recipe = GetRecipe(RecipeName, bFound);
+	if (bFound)
+	{
+		float TotalValue = 0.0f;
+		TArray<FGoodsQuantity> RecipeGoods;		
+		GetGoodsForRecipe(Recipe, RecipeGoods, 0.5f, true);
+		for (FGoodsQuantity Goods : RecipeGoods) {
+			TotalValue += GetValueForGoods(Goods.Name) * Goods.Quantity;
+		}
+		return TotalValue;
+	}
+	else {
+		return 0.0f;
+	}
+}
+
+
+float URecipeManagerComponent::CalculateValueForGoods(const FName& GoodsName, const FName& TopGoodsToCheck)
+{
+	bool bFound;
+	AMMGameMode* GameMode = Cast<AMMGameMode>(UGameplayStatics::GetGameMode(this));
+	if (!GameMode)
+	{
+		UE_LOG(LogMMGame, Error, TEXT("RecipeManager::CalculateValueForGoods - Could not get GameMode"));
+		return 0.0f;
+	}
+	FGoodsType GoodsType = GameMode->GetGoodsData(GoodsName, bFound);
+	if (!bFound)
+	{
+		UE_LOG(LogMMGame, Error, TEXT("RecipeManager::CalculateValueForGoods - Goods type not found %s"), *GoodsName.ToString());
+		return 0.0f;
+	}
+	if (GoodsType.OverrideValue > 0.0f) {
+		return GoodsType.OverrideValue;
+	}
+	FCraftingRecipe ProducingRecipe = GetRecipeForGoodsName(GoodsType.Name, bFound);
+	TMap<FName, float> IngredientValueScaleMap;
+	// Handle the ScaleInputValue directive in recipe category field.
+	for (FName RecipeTag : ProducingRecipe.RecipeCategories) 
+	{
+		FString TagString = RecipeTag.ToString();
+		if (TagString.StartsWith(FString(TEXT("ScaleInputValue"))))
+		{
+			TArray<FString> params;
+			TagString.ParseIntoArray(params, *FString(TEXT(":")), true);
+			if (params.Num() == 3)
+			{
+				float scale = FCString::Atof(*params[2]);
+				IngredientValueScaleMap.Add(FName(params[1]), scale);
+			}
+		}
+	}
+	// Handle ValueIngoreProducedFrom directive in goods tags field.
+	for (FName RecipeTag : GoodsType.GoodsTags) 
+	{
+		FString TagString = RecipeTag.ToString();
+	    // ValueIgnoreProducedFrom:BleachingCake2Cleanse
+		if (TagString.StartsWith(FString(TEXT("ValueIgnoreProducedFrom"))))
+		{
+			TArray<FString> params;
+			TagString.ParseIntoArray(params, *FString(TEXT(":")), true);
+			if (params.Num() == 2) {
+				IngredientValueScaleMap.Add(FName(params[1]), 0.0f);
+			}
+		}
+	}
+	TArray<FGoodsQuantity> GoodsProducedByProducingRecipe;
+	GetGoodsForRecipe(ProducingRecipe, GoodsProducedByProducingRecipe, 0.5f, true);
+	for (FGoodsQuantity ProducedGoods : GoodsProducedByProducingRecipe)
+	{
+		// Find the quantity of goods we're looking for produced by the producing recipe
+		if (ProducedGoods.Name == GoodsType.Name && ProducedGoods.Quantity > 0.f)
+		{
+			float TotalValue = 0.0f;
+			for (FGoodsQuantity IngredientGoods : ProducingRecipe.CraftingInputs)
+			{
+				float IngredientValue = CalculateValueForGoods(IngredientGoods.Name, TopGoodsToCheck) * IngredientGoods.Quantity;
+				if (IngredientValueScaleMap.Contains(IngredientGoods.Name)) {
+					IngredientValue *= IngredientValueScaleMap[IngredientGoods.Name];
+				}
+				TotalValue += IngredientValue;
+				if (IngredientGoods.Name == TopGoodsToCheck) {
+					UE_LOG(LogMMGame, Warning, TEXT("RecipeManagerComponent::CalculateValueForGoods - Found circular recipe chain with %s"), *TopGoodsToCheck.ToString());
+				}
+			}
+			return (TotalValue * GameMode->ValueTierMultiplier) / ProducedGoods.Quantity;
+		}
+	}
+	UE_LOG(LogMMGame, Warning, TEXT("RecipeManagerComponent::CalculateValueForGoods - Found no recipe producing %s"), *GoodsName.ToString());
+	return 0.0f;
+}
+
 int32 URecipeManagerComponent::GetExperienceForRecipe(const FCraftingRecipe& Recipe)
 {
 	return CalculateExperienceForRecipe(Recipe, Recipe.Name);
@@ -289,16 +409,15 @@ int32 URecipeManagerComponent::CalculateExperienceForRecipe(const FCraftingRecip
 	if (Recipe.Tier <= 1) {
 		return Recipe.OverrideCraftingExperience;
 	}
-	if (TopRecipeToCheck == Recipe.Name)
-	{
-		UE_LOG(LogMMGame, Warning, TEXT("RecipeManagerComponent::CalculateExperienceForRecipe - Found circular recipe chain with %s"), *TopRecipeToCheck.ToString());
-		return 0;
-	}
 	float TotalExperience = 0.f;
 	bool bFound;
 	for (FGoodsQuantity IngredientRequired : Recipe.CraftingInputs)
 	{
 		FCraftingRecipe IngredientRequiredRecipe = GetRecipeForGoodsName(IngredientRequired.Name, bFound);
+		if (IngredientRequiredRecipe.Name == TopRecipeToCheck) {
+			UE_LOG(LogMMGame, Warning, TEXT("RecipeManagerComponent::CalculateExperienceForRecipe - Found circular recipe chain with %s"), *TopRecipeToCheck.ToString());
+			return 0.0f;
+		}
 		TArray<FGoodsQuantity> GoodsProducedByRequirementRecipe;
 		GetGoodsForRecipe(IngredientRequiredRecipe, GoodsProducedByRequirementRecipe, 0.5f, true);
 		for (FGoodsQuantity GoodProducedByRequirement : GoodsProducedByRequirementRecipe)
@@ -312,7 +431,13 @@ int32 URecipeManagerComponent::CalculateExperienceForRecipe(const FCraftingRecip
 			}
 		}
 	}
-	return FMath::TruncToInt(TotalExperience * ExperienceTierMultiplier);
+	AMMGameMode* GameMode = Cast<AMMGameMode>(UGameplayStatics::GetGameMode(this));
+	if (!GameMode)
+	{
+		UE_LOG(LogMMGame, Error, TEXT("RecipeManager::CalculateExperienceForRecipe - Could not get GameMode"));
+		return FMath::TruncToInt(TotalExperience);
+	}
+	return FMath::TruncToInt(TotalExperience * GameMode->ExperienceTierMultiplier);
 }
 
 
@@ -398,6 +523,7 @@ void URecipeManagerComponent::InitCraftingRecipes(bool bForceRefresh)
 		{
 			if (GoodsToRecipeMap.Contains(ResultGoods.Name))
 			{
+				// If we find multiple recipes producing this goods type, use the lowest tier recipe.
 				FCraftingRecipe ExistingRecipe = GetRecipe(GoodsToRecipeMap[ResultGoods.Name], bFound);
 				if (bFound && FoundRecipe.Tier < ExistingRecipe.Tier) {
 					GoodsToRecipeMap[ResultGoods.Name] = FoundRecipe.Name;

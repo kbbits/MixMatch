@@ -18,20 +18,13 @@ public:
 	/** Inventory to hold ingredient Goods for this grid. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
 	class UInventoryActorComponent* InputGoodsInventory;
-
-	/** The "ideal" number of different block types that this grid should generate. 
-	 *  Default is 4. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	int32 TargetBlockTypes = 4;
-
+		
 	/** The multiplier applied to the odds to drop an ingredient block. 
 	 *  chance to drop ingredient = (Number of ingredient block types / TargetBlockTypes) * IngredientDropFactor */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	float IngredientDropFactor = 0.75f;
 
-	/** The string to be pre-pended when looking for the block type set to use for generating non-ingredient blocks. 
-	 *  More clearly:  Non-Ingredient BlockTypeSet name
-	 *  Actual block type set name used will be "<NonIngredientBlockTypeSetName>_<clamp to >= 0 (TargetBlockTYpes - Recipe.CraftingIngredients.Num())>"  */
+	/** Set from Recipe.BlockTypeSetBase when SetRecipe() is called. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite)
 	FString NonIngredientBlockTypeSetBaseName;
 
@@ -49,6 +42,11 @@ protected:
 	/** The recipe currently associated with this grid */
 	UPROPERTY()
 	FCraftingRecipe CurrentRecipe;
+
+	/** The default number of different block types that this grid should generate when spawning new blocks.
+	 *  Value is set from RecipeManager based on recipe. */
+	UPROPERTY(BlueprintReadOnly)
+	int32 TargetBlockTypes = 4;
 
 	UPROPERTY()
 	TArray<FGoodsQuantity> IngredientBlockDropOdds;
@@ -95,6 +93,10 @@ public:
 	 * This is based on recipe level. */
 	UFUNCTION(BlueprintNativeEvent, BlueprintPure)
 	float GetChanceForIngredientBlock();
+
+	/** The chance of the given ingredient block dropping amongst other ingredient blocks. */
+	UFUNCTION(BlueprintPure)
+	float GetIngredientBlockRelativeChance(const FName& GoodsName);
 
 	/** Override the base class's logic for which blocks will drop into the grid. */
 	virtual bool GetRandomBlockTypeNameForCell_Implementation(FName& FoundBlockTypeName, const FAddBlockContext& BlockContext) override;

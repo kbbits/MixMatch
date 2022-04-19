@@ -31,12 +31,6 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
 	UDataTable* CraftingRecipesTable;
 
-	/** When caclulating experience for crafting a recipe higher than Tier 1:
-	 *  total experience = ExperienceTierMultiplier * (the total experience for crafting recipes needed for this recipe's ingredients) 
-	 *  Default = 1.1 */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
-	float ExperienceTierMultiplier;
-
 
 protected:
 	
@@ -94,9 +88,18 @@ public:
 	UFUNCTION(BlueprintCallable)
 	void SetRecipeLevel(const FName& RecipeName, const int32 NewLevel);
 
-	/** Gets the percent progress 0.0 - 1.0 for the given recipe to level up to the next level */
+	/** How many recipe craftings are need to reach the given recipe level.
+	 *  ex: CraftingsRequiredForLevel(2) returns the number of craftings need to reach level 2
+	 *  Current formula: FMath::Pow(RecipeLevel - 1, 2.0f) + 1.0f; */
 	UFUNCTION(BlueprintNativeEvent, BlueprintPure)
+	int32 CraftingsRequiredForLevel(const int32 RecipeLevel);
+
+	/** Gets the percent progress 0.0 - 1.0 for the given recipe to level up to the next level */
+	UFUNCTION(BlueprintPure)
 	float GetRecipeLevelUpProgress(const FName& RecipeName);
+
+	UFUNCTION(BlueprintPure)
+	int32 GetCraftingsRemainingForLevelUp(const FName& RecipeName);
 
 	/** Does the recipe currently qualify for a level up? */
 	UFUNCTION(BlueprintPure)
@@ -113,6 +116,9 @@ public:
 	/** @returns The number of times the recipe has been crafted by the player. */
 	UFUNCTION(BlueprintPure)
 	int32 GetRecipeCraftingCount(const FName& RecipeName);
+
+	UFUNCTION(BlueprintPure)
+	int32 GetTargetBlockTypeCount(const FCraftingRecipe& Recipe);
 
 	/** @returns The number of times the recipe has been crafted by the player. */
 	UFUNCTION(BlueprintPure)
@@ -133,8 +139,17 @@ public:
 	UFUNCTION(BlueprintPure)
 	bool GetGoodsForRecipe(const FCraftingRecipe& Recipe, TArray<FGoodsQuantity>& OutputGoods, const float QuantityScale = -1.f, const bool bExcludeBonusGoods = false);
 
+	/** @returns the value of the goods. For Tier <= 1 goods, this is the value in OverrideValue.
+	 * For higher tiers the total value is (sum of ingredients goods value) * ValueTierMultiplier */
+	UFUNCTION(BlueprintPure)
+	float GetValueForGoods(const FName& GoodsName);
+
+	/** @returns the value of the goods produced by the recipe. For Tier <= 1 recipe, this is the value in OverrideValue. */
+	UFUNCTION(BlueprintPure)
+	float GetValueForRecipe(const FName& RecipeName);
+
 	/** @returns The experience for crafting the given recipe. For Tier 1 recipes, this is the value in OverrideCraftingExperience.
-	 *  For Higher tier recipes the total experience is (sum of experience for crafting recipes for it's crafting inputs) * ExperienceTierMultiplier
+	 *  For higher tier recipes the total experience is (sum of experience for crafting recipes for it's crafting inputs) * ExperienceTierMultiplier
 	 *  Note: these multipliers are cumulative as we go up tiers. */
 	UFUNCTION(BlueprintPure)
 	int32 GetExperienceForRecipe(const FCraftingRecipe& Recipe);
@@ -158,6 +173,8 @@ protected:
 	void InitCraftingRecipes(bool bForceRefresh = false);
 
 private:
+
+	float CalculateValueForGoods(const FName& GoodsName, const FName& TopGoodsToCheck);
 
 	int32 CalculateExperienceForRecipe(const FCraftingRecipe& Recipe, const FName& TopRecipeToCheck);
 
