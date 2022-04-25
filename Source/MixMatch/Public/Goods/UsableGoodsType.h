@@ -2,6 +2,7 @@
 
 #include "Engine/DataTable.h"
 #include "GameEffect/GameEffect.h"
+#include "Goods/GoodsType.h"
 #include "UsableGoodsType.generated.h"
 
 /*
@@ -20,9 +21,34 @@ public:
 	FName Name;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame)
-	TArray<TSubclassOf<UGameEffect>> GameEffects;
+	TArray<FGameEffectContext> GameEffects;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = Block)
 	TSoftObjectPtr<USoundBase> UseSound;
 
+};
+
+
+UCLASS(BlueprintType)
+class MIXMATCH_API UUsableGoods : public UObject
+{
+	GENERATED_BODY()
+
+public:
+
+	UPROPERTY(BlueprintReadOnly, meta = (ExposeOnSpawn = true))
+	FGoodsType GoodsType;
+
+	UPROPERTY(BlueprintReadOnly, meta = (ExposeOnSpawn = true))
+	FUsableGoodsType UsableGoodsType;
+
+public:
+
+	UUsableGoods();
+
+	UFUNCTION(BlueprintPure)
+	bool IsUsable();
+
+	UFUNCTION(BlueprintPure)
+	FName GetName();
 };

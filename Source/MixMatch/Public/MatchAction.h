@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "BlockMatch.h"
 #include "MMEnums.h"
+#include "GameEffect/GameEffect.h"
 #include "MatchAction.generated.h"
 
 
@@ -19,25 +20,30 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame)
 	FName Name;
 
-	// Class of the action to instantiate and call Perform().
+	// The GameEffects to trigger for this match
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame)
-		TSubclassOf<class UMatchAction> MatchActionClass;
+	TArray<FGameEffectContext> GameEffects;
+
+	// Class of the action to instantiate and call Perform().
+	//UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame, meta = (DeprecatedProperty))
+	//TSubclassOf<class UMatchAction> MatchActionClass;
 
 	// How to apply this action. ex once per match, once per block, etc.
+	// Game effects will be applied accordingly
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame)
-		EMMBlockQuantity ActionQuantityType = EMMBlockQuantity::PerMatch;
+	EMMBlockQuantity ActionQuantityType = EMMBlockQuantity::PerMatch;
 
 	// Quantity applied to the action. Not all actions use this.
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame)
-		float Quantity = 1.f;
+	//UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame, meta = (DeprecatedProperty))
+	//float Quantity = 1.f;
 
 	// Parameter string passed to the action. Not all actions use this.
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame)
-		FString ActionParam;
+	//UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame, meta = (DeprecatedProperty))
+	//FString ActionParam;
 
 	/** Used to determine when the action is performed. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame)
-		EMMMatchActionCategory ActionCategory;
+	//UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame)
+	//EMMMatchActionCategory ActionCategory;
 };
 
 
@@ -62,6 +68,7 @@ public:
 };
 
 /**
+ * 
  */
 UCLASS(BlueprintType, Blueprintable)
 class MIXMATCH_API UMatchAction : public UObject
@@ -74,6 +81,11 @@ public:
 
 	// Perform this action. Default implementation just returns true.
 	// Returns: true if action operation was successful.
+	//UFUNCTION(BlueprintNativeEvent, BlueprintCallable)
+	//bool Perform(const UBlockMatch* Match, const FMatchActionType& MatchActionType, const AMMBlock* TriggeringBlock);
+
+	// Perform the given GameEffect associated with this action. 
+	// Returns: true if action operation was successful.
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable)
-	bool Perform(const UBlockMatch* Match, const FMatchActionType& MatchActionType, const AMMBlock* TriggeringBlock);
+	bool PerformGameEffect(const FGameEffectContext EffectContext, const AMMBlock* TriggeringBlock);
 };

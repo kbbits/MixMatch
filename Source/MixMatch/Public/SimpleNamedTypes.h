@@ -8,6 +8,74 @@
 // Named Primitive types as structs
 //
 
+
+USTRUCT(BlueprintType)
+struct FSimpleNamedString
+{
+	GENERATED_BODY()
+
+public:
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame)
+	FName Name;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame)
+	FString Value;
+
+public:
+	FSimpleNamedString()
+	{
+		Name = FName();
+		Value = FString();
+	}
+
+	FSimpleNamedString(const FName& NewName, const FString& NewValue)
+	{
+		Name = NewName;
+		Value = NewValue;
+	}
+
+	FORCEINLINE bool operator==(const FSimpleNamedString& Other) const
+	{
+		if (Name != Other.Name) return false;
+		if (Value != Other.Value) return false;
+		return true;
+	}
+
+	FORCEINLINE bool operator==(const FSimpleNamedString& Other)
+	{
+		if (Name != Other.Name) return false;
+		if (Value != Other.Value) return false;
+		return true;
+	}
+
+	FORCEINLINE bool operator==(FSimpleNamedString& Other)
+	{
+		if (Name != Other.Name) return false;
+		if (Value != Other.Value) return false;
+		return true;
+	}
+
+	FORCEINLINE bool operator==(const FName& OtherName) const
+	{
+		if (Name != OtherName) return false;
+		return true;
+	}
+
+	FORCEINLINE bool operator==(const FName& OtherName)
+	{
+		if (Name != OtherName) return false;
+		return true;
+	}
+
+	FORCEINLINE bool operator==(FName& OtherName)
+	{
+		if (Name != OtherName) return false;
+		return true;
+	}
+};
+
+
 USTRUCT(BlueprintType)
 struct FSimpleNamedFloat
 {
@@ -310,7 +378,7 @@ static FORCEINLINE TMap<FName, int32> NamedQuantitiesToCountMap(const TArray<T>&
 }
 
 
-// Create a map from an array. Each element in array must have a Name (FName) and a Quantity (float) property. (ex: FGoodsQuantity)
+// Create a map from an array. Each element in array must have a Name (FName) and a Quantity (float) property. (ex: SimpleNamedFloat or FGoodsQuantity)
 // New map will have Name as key and Quantity as value. Collisions of Name in array are overwritten, last one wins.
 // ex: Useful for transforming an array of GoodsQuantities to a map with each key as the GoodsQuantity.Name and the Quantity as the value.
 template<class T>

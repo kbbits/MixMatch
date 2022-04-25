@@ -119,6 +119,7 @@ protected:
 	/** Some basic protection for errors when attempting to settle this block */
 	int32 BlockSettleFails = 0;
 
+	/** Output verbose logging for blocks */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	bool bDebugLog = true;
 
@@ -152,7 +153,7 @@ public:
 	void SetBlockType(const FBlockType& NewBlockType);
 
 	UFUNCTION(BlueprintPure)
-	FBlockType& GetBlockType();
+	const FBlockType& GetBlockType() const;
 
 	/** Get this block's current grid coordinates. */
 	UFUNCTION(BlueprintPure)
@@ -185,6 +186,9 @@ public:
 	UFUNCTION(BlueprintPure)
 	bool CanMove() const;
 
+	UFUNCTION(BlueprintPure)
+	bool IsIndestructible() const;
+
 	AMMPlayGridCell* FindSettleCell();
 
 	/** Move this block to the given cell.If the cell is not occupied this will set OwningGridCell, otherwise this will set SettleToCell. */
@@ -211,11 +215,12 @@ public:
 	UFUNCTION(BlueprintCallable)
 	void Highlight(bool bOn);
 
+	/** Destroys block actor. Only cleans up itself. i.e. grid, etc. must clean their own refs, etc. */
 	void DestroyBlock();
 
 	/** Get the goods dropped for a "normal", minimum size, block match. */
 	UFUNCTION(BlueprintNativeEvent)
-	TArray<FGoodsQuantity> GetBaseMatchGoods(const UGoodsDropper* GoodsDropper, const float QuantityScale = -1.f);
+	TArray<FGoodsQuantity> GetBaseMatchGoods(const UGoodsDropper* GoodsDropper, const float QuantityScale = -1.f) const;
 
 	/** Get the goods dropped for the given match. */
 	UFUNCTION(BlueprintNativeEvent)

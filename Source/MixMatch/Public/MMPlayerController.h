@@ -13,6 +13,7 @@
 #include "MMPlayerController.generated.h"
 
 class ACraftingToolActor;
+class UActionBarItem;
 
 // Event dispatcher for when CurrentGrid changes to different grid
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnCurrentGridChanged, const AMMPlayGrid*, NewCurrentGrid);
@@ -28,6 +29,12 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnGoodsCollected, const TArray<FGoo
 
 // Event dispatcher for when a recipe is crafted
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnRecipeCrafted, const FCraftingRecipe&, CraftedRecipe, const int32, QuantityCrafted);
+
+// Event dispatcher for when slots are added to or removed from action bar
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnActionBarChanged);
+
+// Event dispatcher for when a given action bar slot has changed
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnActionBarItemChanged, const int32, SlotNumber, const UActionBarItem*, CurrentActionBarItem);
 
 
 /** PlayerController class used to enable cursor */
@@ -55,6 +62,14 @@ public:
 	// Delegate event when a recipe is crafted
 	UPROPERTY(BlueprintAssignable, Category = "EventDispatchers")
 	FOnRecipeCrafted OnRecipeCrafted;
+
+	// When slots are added to or removed from the action bar.
+	UPROPERTY(BlueprintAssignable, Category = "EventDispatchers")
+	FOnActionBarChanged OnActionBarChanged;
+
+	// When given action bar slot has changed
+	UPROPERTY(BlueprintAssignable, Category = "EventDispatchers")
+	FOnActionBarItemChanged OnActionBarItemChanged;
 
 	// This component handles save/load 
 	UPROPERTY(EditInstanceOnly, BlueprintReadWrite)
@@ -87,6 +102,12 @@ protected:
 
 	UPROPERTY(BlueprintReadWrite)
 	ACraftingToolActor* CurrentTool = nullptr;
+
+	UPROPERTY(SaveGame)
+	int32 ActionBarSize = 0;
+
+	UPROPERTY()
+	TArray<UActionBarItem*> ActionBarItems;
 
 	// Ordered list (stack) of input contexts.
 	UPROPERTY(BlueprintReadOnly)
@@ -133,6 +154,31 @@ public:
 
 	UFUNCTION(BlueprintCallable)
 	void SetRecipeLevel(const FName RecipeName, const int32 NewLevel);
+
+	/** Returns the number of available slots in action bar.
+	 *  Note that slot numbers (indexes) in action bar are 0 based. So max valid slot number = action bar size - 1. */
+	UFUNCTION(BlueprintCallable)
+	int32 GetActionBarSize();
+
+	/** Set the size of the action bar. This will shrink or grow the ActionBarItems array as needed. */
+	UFUNCTION(BlueprintCallable)
+	void SetActionBarSize(const int32 NewSize);
+
+	/** Gets the UActionBarItem instance at the given action bar slot index. (Index is 0 based) 
+	 *  Returns nullptr if slot does not exist or no item is in slot. */
+	UFUNCTION(BlueprintPure)
+	UActionBarItem* GetActionBarItem(const int32 SlotIndex);
+
+	/** Sets the action bar slot to use the given usable goods name. (slot index is 0 based)
+	 *  Returns true if setting the slot was successful. 
+	 *  Returns false if slot number > ActionBarSize. */
+	UFUNCTION(BlueprintCallable)
+	bool SetActionBarItemByName(const FName& UsableGoodsName, const int32 SlotIndex);
+
+	/** Removes and cleans up any action bar item at the given slot index. 
+	 *  If bFireEvents = true then the OnActionBarItemChanged event will be dispatched. */
+	UFUNCTION(BlueprintCallable)
+	void ClearActionBarItem(const int32 SlotIndex, const bool bFireEvents = true);
 
 	UFUNCTION(BlueprintCallable)
 	void HandleToolClicked(UPARAM(ref) ACraftingToolActor* ClickedTool);

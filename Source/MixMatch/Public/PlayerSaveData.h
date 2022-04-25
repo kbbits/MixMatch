@@ -49,5 +49,11 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame)
 		TArray<FSimpleNamedInt> TotalRecipesCrafted;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame)
+		int32 ActionBarSize;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame)
+		TArray<FName> ActionBarItemNames;
 		
 };

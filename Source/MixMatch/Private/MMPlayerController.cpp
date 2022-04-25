@@ -5,7 +5,9 @@
 #include "Kismet/GameplayStatics.h"
 #include "Goods/GoodsFunctionLibrary.h"
 #include "../MixMatch.h"
+#include "MMGameMode.h"
 #include "CraftingToolActor.h"
+#include "ActionBarItem.h"
 
 
 AMMPlayerController::AMMPlayerController()
@@ -48,7 +50,20 @@ bool AMMPlayerController::GetPlayerSaveData_Implementation(FPlayerSaveData& Save
 	SaveData.ProfileName = FName(PlayerDisplayName.ToString());
 	SaveData.DisplayName = PlayerDisplayName;
 	SaveData.TotalPlaytime = LoadedTotalPlaytime + (UGameplayStatics::GetTimeSeconds(this) - TimeAtLastSave);
+	SaveData.ActionBarSize = GetActionBarSize();
+	SaveData.ActionBarItemNames.Empty(ActionBarSize);
+	for (int32 i = 0; i < ActionBarSize; i++) 
+	{
+		UActionBarItem* Item = GetActionBarItem(i);
+		if (Item) {
+			SaveData.ActionBarItemNames.Add(Item->GetName());
+		}
+		else {
+			SaveData.ActionBarItemNames.Add(NAME_None);
+		}
+	}	
 	TimeAtLastSave = UGameplayStatics::GetTimeSeconds(this);
+	
 	// Inventory
 	GoodsInventory->GetSaveableGoods(SaveData.GoodsInventory);
 	GoodsInventory->GetSnapshotGoods(SaveData.SnapshotInventory);
@@ -74,6 +89,15 @@ bool AMMPlayerController::UpdateFromPlayerSaveData_Implementation(const FPlayerS
 	TimeAtLastSave = UGameplayStatics::GetTimeSeconds(this);
 	// Inventory
 	GoodsInventory->ServerSetInventory(SaveData.GoodsInventory, SaveData.SnapshotInventory);
+	SetActionBarSize(SaveData.ActionBarSize);
+	// Set action bar items
+	for (int32 i = 0; i < SaveData.ActionBarItemNames.Num(); i++) {
+		SetActionBarItemByName(SaveData.ActionBarItemNames[i], i);
+	}
+	// Clear empty action bar slots
+	for (int32 i = SaveData.ActionBarItemNames.Num(); i < ActionBarSize; i++) {
+		ClearActionBarItem(i);
+	}
 	// Other data
 	if (RecipeManager)
 	{
@@ -161,6 +185,96 @@ void AMMPlayerController::SetRecipeLevel(const FName RecipeName, const int32 New
 }
 
 
+int32 AMMPlayerController::GetActionBarSize()
+{
+	return ActionBarSize;
+}
+
+
+void AMMPlayerController::SetActionBarSize(const int32 NewSize)
+{
+	AMMGameMode* GameMode = Cast<AMMGameMode>(UGameplayStatics::GetGameMode(this));
+	if (GameMode == nullptr) { return; }
+	int32 ValidNewSize = NewSize < 0 ? 0 : (NewSize > GameMode->MaxActionBarSize ? GameMode->MaxActionBarSize : NewSize);
+	// Clear out the items that won't fit in the new size.
+	for (int32 i = ActionBarItems.Num() - 1; i > ValidNewSize - 1; i--)	{
+		ClearActionBarItem(i, false);
+	}
+	ActionBarSize = ValidNewSize;
+	ActionBarItems.SetNum(ActionBarSize, true);
+	OnActionBarChanged.Broadcast();
+}
+
+
+UActionBarItem* AMMPlayerController::GetActionBarItem(const int32 SlotIndex)
+{
+	if (SlotIndex >= ActionBarSize || !ActionBarItems.IsValidIndex(SlotIndex)) {
+		return nullptr;
+	}
+	return ActionBarItems[SlotIndex];
+}
+
+
+bool AMMPlayerController::SetActionBarItemByName(const FName& UsableGoodsName, const int32 SlotIndex)
+{
+	if (SlotIndex >= ActionBarSize) { return false; }
+	// Sanity check, make sure action bar has been sized according to ActionBarSize
+	if (SlotIndex >= ActionBarItems.Num()) {
+		SetActionBarSize(ActionBarSize);
+	}
+	bool bFound = false;
+	UUsableGoods* UsableGoods = nullptr;
+	if (UsableGoodsName != NAME_None) 
+	{
+		AMMGameMode* GameMode = Cast<AMMGameMode>(UGameplayStatics::GetGameMode(this));
+		if (GameMode == nullptr) { return false; }
+		//GoodsInventory->GetGoodsCount(UsableGoodsName);
+		UsableGoods = GameMode->GetUsableGoods(UsableGoodsName, bFound);
+	}
+	if (bFound && UsableGoods && UsableGoods->IsUsable())
+	{
+		// Clear any current item at the index, don't fire events.
+		ClearActionBarItem(SlotIndex, false);
+		// Create the new ActionBarItem
+		UActionBarItem* Item = NewObject<UActionBarItem>(this, UActionBarItem::StaticClass());
+		if (Item) 
+		{
+			// Init its properties and add it to the action bar items array
+			Item->UsableGoods = UsableGoods;
+			ActionBarItems[SlotIndex] = Item;
+			// Fire notification
+			OnActionBarItemChanged.Broadcast(SlotIndex, Item);
+			return true;
+		}
+	}
+	else 
+	{
+		// No usable goods found, so just clear the slot, let it fire events.
+		ClearActionBarItem(SlotIndex);
+	}
+	return false;
+}
+
+
+void AMMPlayerController::ClearActionBarItem(const int32 SlotIndex, const bool bFireEvents)
+{
+	UActionBarItem* Item = nullptr;
+	if (ActionBarItems.IsValidIndex(SlotIndex)) 
+	{
+		Item = ActionBarItems[SlotIndex];
+		if (Item) 
+		{
+			// Have the item cleanup after itself
+			Item->Cleanup();
+			ActionBarItems[SlotIndex] = nullptr;
+			if (bFireEvents) {
+				OnActionBarItemChanged.Broadcast(SlotIndex, nullptr);
+			}
+		}
+	}
+}
+
+
 void AMMPlayerController::HandleToolClicked(ACraftingToolActor* ClickedTool)
 {
 	if (GetLastInputContext() != EMMInputContext::None)
@@ -189,6 +303,7 @@ void AMMPlayerController::OnPrePlayGrid_Implementation()
 {
 	OnPlayGrid();
 }
+
 
 void AMMPlayerController::OnPlayGrid_Implementation()
 {

@@ -73,6 +73,18 @@ enum class EMMBlockQuantity : uint8
 
 
 UENUM(BlueprintType)
+enum class EMMBlockHandling : uint8
+{
+	/* This doesn't destroy, spawn or replace blocks. */
+	General			UMETA(DisplayName = "General"),
+	/* This destroys blocks. */
+	DestroysBlocks	UMETA(DisplayName = "DestroysBlocks"),
+	/* This spawns or replaces blocks. */
+	SpawnsBlocks	UMETA(DisplayName = "SpawnsBlocks")
+};
+
+
+UENUM(BlueprintType)
 enum class EMMBlockLocation : uint8
 {
 	/* Spawn block above top row */

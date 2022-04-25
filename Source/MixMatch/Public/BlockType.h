@@ -38,7 +38,7 @@ public:
 
 	// Categories (or groups) that this block type belongs to.
 	// A block will compare it's MatchCode and OtherMatchCodes to a block's categories when determining matches.
-	// Note that two blocks in the same category will not match unless one or both of those blocks include
+	// Note that two blocks in the same category will not match unless they match for other reasons OR one or both of those blocks include
 	// that category in their MatchCode or OtherMatchCodes.
 	// 
 	// Blocks that represent goods should have the GoodsCategory::Goods category added to them.
@@ -81,6 +81,9 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame)
 	bool bImmobile;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame)
+	bool bIndestructible;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame)
 	int32 PointsPerBlock;

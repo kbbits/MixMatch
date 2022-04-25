@@ -1,6 +1,6 @@
 
-#include "Algo/Sort.h"
 #include "BlockMatch.h"
+#include "Algo/Sort.h"
 #include "..\MixMatch.h"
 #include "MMPlayGrid.h"
 #include "MMPlayGridCell.h"

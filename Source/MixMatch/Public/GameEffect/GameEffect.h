@@ -2,7 +2,46 @@
 
 #include "CoreMinimal.h"
 #include "Engine/Texture2D.h"
+#include "MMEnums.h"
+#include "SimpleNamedTypes.h"
 #include "GameEffect.generated.h"
+
+
+USTRUCT(BlueprintType)
+struct FGameEffectContext
+{
+	GENERATED_BODY()
+
+public:
+
+	/** The GameEffect class to instantiate.  */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame)
+	TSubclassOf<class UGameEffect> GameEffectClass;
+
+	/** The maximum number of block selections associated with the effect. */
+	//UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame)
+	//int32 MaxSelections = 0;
+
+	/** Param values used by this GameEffect. Subclasses implement differently.
+	 *  See subclasses for details. */
+	//UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame, meta = (TitleProperty= "Name"))
+	//TArray<FSimpleNamedFloat> NamedFloatParams;
+
+	/** How these params are used differes by GameEffect subclass implementation.
+	 *  See each subclass for details. */
+	//UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame, meta = (TitleProperty = "Name"))
+	//TArray<FSimpleNamedString> NamedStringParams;
+
+	/** How these params are used differes by GameEffect subclass implementation.
+	 *  See each subclass for details. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame)
+	TArray<float> FloatParams;
+
+	/** How these params are used differes by GameEffect subclass implementation.
+	 *  See each subclass for details. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame)
+	TArray<FString> StringParams;
+};
 
 
 /**
@@ -20,6 +59,9 @@ protected:
 	// The number of selections required. Default is 0, i.e. no selection required.
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, SaveGame)
 	int32 NumSelections = 0;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, SaveGame)
+	EMMBlockHandling BlockHandling;
 
 	// Thumbnail for GUI use
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, SaveGame)
@@ -40,28 +82,47 @@ public:
 	// Constructor
 	UGameEffect();
 
-	// Does this effect require the user to make at least one selection?
+	/** Set this effects parameters from those contained in the GameEffectContext */
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable)
+	void SetEffectParams(const FGameEffectContext& EffectContext);
+
+	/** Does this effect require the user to make at least one selection ? */
 	UFUNCTION(BlueprintCallable)
 	bool RequiresSelection();
 
-	// Checks if the effect can be triggered, optionally at the given grid coords. Default implementation just returns true.
-	// Returns: true if effect can be triggered.
+	UFUNCTION(BlueprintCallable)
+	EMMBlockHandling GetBlockHandling();
+
+	/** Checks if the effect can be triggered, optionally at the given grid coords. Default implementation just returns true.
+	 * Returns: true if effect can be triggered. */
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable)
 	bool CanTrigger(const TArray<FIntPoint>& PerformCoords);
 
-	// Apply the effect to the game, optionally providing a list of grid coords to apply the effect to. Default implementation just returns true.
-	// Returns: true if effect was triggered successfully.
+	/** Returns the list of cell coords that would be effected by applying the effect at the selected coords. 
+	 *  Base class just returns SelectedCoords. */
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable)
+	TArray<FIntPoint> GetEffectedCoords(const FIntPoint SelectedCoords);
+
+	/** Apply the effect to the game, optionally providing a list of grid coords to apply the effect to.Default implementation just returns true.
+	 * Subclasses override for FX, etc.
+	 * Returns: true if effect was triggered successfully. */
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable)
 	bool BeginEffect(const TArray<FIntPoint>& PerformCoords);
 
-	// Increment the TurnsInEffect and perform any per-turn effects.
-	// Base class implementation only increments TurnsInEffect.
-	// Return true if the effect has remaining duration. 
+	/** Get the number of turns remaining for this effect. */
+	UFUNCTION(BlueprintPure)
+	int32 GetRemainingDuration();
+
+	/** Increment the TurnsInEffectand perform any per - turn effects.
+	 * Base class implementation just increments TurnsInEffect.
+	 * Return true if the effect has remaining duration. */
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable)
 	bool IncrementTurn();
 
-	// Remove the effect from the game.
-	// Base class implementation does nothing.
+	/** Remove the effect from the game.
+	 * Base class implementation does nothing. */
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable)
 	void EndEffect();
 };
+
+

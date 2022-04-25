@@ -123,7 +123,10 @@ void URecipeManagerComponent::SetRecipeLevel(const FName& RecipeName, const int3
 
 int32 URecipeManagerComponent::CraftingsRequiredForLevel_Implementation(const int32 RecipeLevel)
 {
-	return (int32)FMath::Pow(RecipeLevel - 1, 2.0f) + 1.0f;
+	if (RecipeLevel <= 1) {
+		return 0;
+	}
+	return (int32)(FMath::Pow(RecipeLevel - 1, 2.0f) + 1.0f);
 }
 
 
@@ -311,6 +314,7 @@ float URecipeManagerComponent::GetValueForRecipe(const FName& RecipeName)
 	{
 		float TotalValue = 0.0f;
 		TArray<FGoodsQuantity> RecipeGoods;		
+		// Recpie value = total value of goods produced by recipe
 		GetGoodsForRecipe(Recipe, RecipeGoods, 0.5f, true);
 		for (FGoodsQuantity Goods : RecipeGoods) {
 			TotalValue += GetValueForGoods(Goods.Name) * Goods.Quantity;

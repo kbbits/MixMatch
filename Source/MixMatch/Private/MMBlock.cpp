@@ -226,7 +226,8 @@ void AMMBlock::SetBlockType_Implementation(const FBlockType& NewBlockType)
 	UpdateBlockVis();
 }
 
-FBlockType& AMMBlock::GetBlockType()
+
+const FBlockType& AMMBlock::GetBlockType() const
 {
 	return BlockType;
 }
@@ -289,6 +290,12 @@ bool AMMBlock::IsMatchFinished(const UBlockMatch* Match) const
 bool AMMBlock::CanMove() const
 {
 	return !BlockType.bImmobile;
+}
+
+
+bool AMMBlock::IsIndestructible() const
+{
+	return BlockType.bIndestructible;
 }
 
 
@@ -421,7 +428,7 @@ void AMMBlock::DestroyBlock()
 }
 
 
-TArray<FGoodsQuantity> AMMBlock::GetBaseMatchGoods_Implementation(const UGoodsDropper* GoodsDropper, const float QuantityScale)
+TArray<FGoodsQuantity> AMMBlock::GetBaseMatchGoods_Implementation(const UGoodsDropper* GoodsDropper, const float QuantityScale) const
 {
 	// const_cast because goods dropper must be passed as const in order to appear as input pin. GoodsDropper is not originally declared const.
 	// UPARAM(ref) does not work since UObjects must be passed as pointers.

@@ -58,6 +58,42 @@ FGoodsType AMMGameMode::GetGoodsData(const FName& GoodsName, bool& bFound)
 	return FGoodsType();
 }
 
+
+bool AMMGameMode::GetUsableGoodsData(const FName& GoodsName, FGoodsType& GoodsType, FUsableGoodsType& UsableGoodsType, bool& bFound)
+{
+	UsableGoodsType.Name = NAME_None;
+	GoodsType = GetGoodsData(GoodsName, bFound);
+	if (!bFound) {
+		GoodsType.Name = NAME_None;
+		return false;
+	}
+	if (CachedUsableGoodsTypes.Contains(GoodsName))
+	{
+		UsableGoodsType = *CachedUsableGoodsTypes.Find(GoodsName);
+		return true;
+	}
+	return false;
+}
+
+UUsableGoods* AMMGameMode::GetUsableGoods(const FName& GoodsName, bool& bFound)
+{
+	FGoodsType GoodsTypeData;
+	FUsableGoodsType UsableData;
+	GetUsableGoodsData(GoodsName, GoodsTypeData, UsableData, bFound);
+	if (bFound) 
+	{
+		UUsableGoods* UsableGoods = NewObject<UUsableGoods>(this, UUsableGoods::StaticClass());
+		if (UsableGoods)
+		{
+			UsableGoods->GoodsType = GoodsTypeData;
+			UsableGoods->UsableGoodsType = UsableData;
+			return UsableGoods;
+		}
+	}
+	return nullptr;
+}
+
+
 UGoodsDropper* AMMGameMode::GetGoodsDropper()
 {
 	InitGoodsDropper();
@@ -192,6 +228,21 @@ float AMMGameMode::GetBlockMoveSpeed()
 		return DefaultBlockMoveSpeed * PC->GetBlockMoveSpeedMultiplier();
 	}
 	return DefaultBlockMoveSpeed;
+}
+
+
+bool AMMGameMode::GetGoodsForBlock(const AMMBlock* Block, FGoodsQuantitySet& BlockGoods)
+{
+	if (!IsValid(Block)) { return false; }
+	BlockGoods.Goods.Empty();
+	InitGoodsDropper();
+	if (!IsValid(GoodsDropper))
+	{
+		UE_LOG(LogMMGame, Error, TEXT("MMGameMode::GetGoodsForBlock - GoodsDropper is not valid"));
+		return false;
+	}
+	BlockGoods.Goods.Append(Block->GetBaseMatchGoods(GoodsDropper));
+	return true;
 }
 
 
@@ -360,16 +411,26 @@ void AMMGameMode::InitCachedGoodsTypes(bool bForceRefresh)
 	if (CachedGoodsTypes.Num() > 0 && !bForceRefresh) { return; }
 	if (!IsValid(GoodsTable)) 
 	{
-		UE_LOG(LogMMGame, Error, TEXT("MMGameMode::InitCachedGoodsTypes - GoodsTable is null."));
+		UE_LOG(LogMMGame, Error, TEXT("MMGameMode::InitCachedGoodsTypes - GoodsTable is not valid."));
+		return;
+	}
+	if (!IsValid(UsableGoodsTable))
+	{
+		UE_LOG(LogMMGame, Error, TEXT("MMGameMode::InitCachedGoodsTypes - UsableGoodsTable is not valid."));
 		return;
 	}
 	TArray<FSoftObjectPath> AssetsToCache;
 	CachedGoodsTypes.Empty(GoodsTable->GetRowMap().Num());
+	CachedUsableGoodsTypes.Empty(UsableGoodsTable->GetRowMap().Num());
 	for (const TPair<FName, uint8*>& It : GoodsTable->GetRowMap())
 	{
 		FGoodsType* FoundGoodsType = reinterpret_cast<FGoodsType*>(It.Value);
 		CachedGoodsTypes.Add(It.Key, *FoundGoodsType);
 		AssetsToCache.AddUnique(FoundGoodsType->Thumbnail.ToSoftObjectPath());
+		FUsableGoodsType* UsableData = UsableGoodsTable->FindRow<FUsableGoodsType>(FoundGoodsType->Name, "", false);
+		if (UsableData) {
+			CachedUsableGoodsTypes.Add(UsableData->Name, *UsableData);
+		}
 	}
 	CacheAssets(AssetsToCache, FName(TEXT("Goods")));
 }
@@ -411,6 +472,60 @@ void AMMGameMode::CacheAssets(const TArray<FSoftObjectPath> AssetsToCache, const
 		FStreamableManager& Manager = UAssetManager::GetStreamableManager();
 		FStreamableDelegate Delegate = FStreamableDelegate::CreateUObject(this, &AMMGameMode::OnAssetsCached, TmpAssets, GroupName);
 		Manager.RequestAsyncLoad(TmpAssets, Delegate);
+	}
+}
+
+
+bool AMMGameMode::AddGameEffect_Implementation(const FGameEffectContext& EffectContext, const TArray<FIntPoint>& EffectCoords)
+{
+	UGameEffect* GameEffect = NewObject<UGameEffect>(this, EffectContext.GameEffectClass);
+	bool bSuccess = false;
+	if (GameEffect)
+	{
+		GameEffect->SetEffectParams(EffectContext);
+		if (GameEffect->CanTrigger(EffectCoords)) 
+		{
+			bSuccess = GameEffect->BeginEffect(EffectCoords);
+			if (bSuccess) 
+			{
+				OnGameEffectBegan.Broadcast(GameEffect, EffectCoords);
+				// If effect has no duration end it immediately, don't put it in the queue.
+				if (GameEffect->GetRemainingDuration() <= 0) {
+					EndGameEffect(GameEffect);
+				}
+				else {
+					ActiveGameEffects.Add(GameEffect);
+				}
+			}
+		}
+	}
+	return bSuccess;
+}
+
+
+void AMMGameMode::IncrementGameEffectsTurn()
+{
+	for (UGameEffect* GameEffect: ActiveGameEffects) {
+		// IncrementTurn returns false if no remaining duration.
+		if (!GameEffect->IncrementTurn()) {
+			EndGameEffect(GameEffect);
+		}
+	}
+}
+
+
+void AMMGameMode::EndGameEffect(UGameEffect* GameEffect)
+{
+	GameEffect->EndEffect();
+	ActiveGameEffects.Remove(GameEffect);
+	OnGameEffectEnded.Broadcast(GameEffect);
+}
+
+
+void AMMGameMode::EndAllActiveGameEffects()
+{
+	for (UGameEffect* GameEffect : ActiveGameEffects) {
+		EndGameEffect(GameEffect);
 	}
 }
 

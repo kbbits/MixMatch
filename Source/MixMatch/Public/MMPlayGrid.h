@@ -12,6 +12,9 @@
 // Event dispatcher for when grid gives award for matches
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnMatchAwards, const TArray<UBlockMatch*>&, Matches);
 
+// Event dispatcher for when grid gives award for blocks destroyed outside of matches
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnBlockDestroyedAwards, const AMMBlock*, Block, const TArray<FGoodsQuantity>&, Goods);
+
 // Event dispatcher for when grid gives award for matches
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnGridLocked, const AMMPlayGrid*, LockedGrid);
 
@@ -32,6 +35,10 @@ public:
 	// Delegate event when grid gives awards for matches.
 	UPROPERTY(BlueprintAssignable, Category = "EventDispatchers")
 	FOnMatchAwards OnMatchAwards;
+
+	// Delegate event when grid gives awards for blocks destroyed outside of matches.
+	UPROPERTY(BlueprintAssignable, Category = "EventDispatchers")
+	FOnBlockDestroyedAwards OnBlockDestroyedAwards;
 
 	// Delegate event called when grid becomes locked.
 	UPROPERTY(BlueprintAssignable, Category = "EventDispatchers")
@@ -174,8 +181,13 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
 	class UInventoryActorComponent* GoodsInventory;
 
+	/** Output verbose debug logging for this grid. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	bool bDebugLog = true;
+
+	/** Include match logic in debug logging. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	bool bDebugLogMatches = false;
 
 private:
 
@@ -272,9 +284,17 @@ public:
 
 	//### Get Cells & Blocks **/
 
+	// Get the total number of cells in the grid.
+	UFUNCTION(BlueprintPure)
+	int32 GetCellCount();
+
 	/** Get cell at given grid coordinates. */
 	UFUNCTION(BlueprintPure)
 	AMMPlayGridCell* GetCell(const FIntPoint& Coords);
+
+	/** Get the cell at the given index. Cells are numbered from bottom left to top right 0 to numCells - 1 */
+	UFUNCTION(BlueprintPure)
+	AMMPlayGridCell* GetCellByNumber(const int32 CellNumber);
 
 	/** Get cell that are adjacent to the given cell. */
 	UFUNCTION(BlueprintPure)
@@ -365,7 +385,7 @@ public:
 	bool PerformActionsForMatch(UPARAM(ref) UBlockMatch* Match, const bool bDestroyOnly /*only perform destroy actions OR non-destroy actions*/);
 
 	UFUNCTION()
-	bool PerformActionType(const FMatchActionType& MatchActionType, const UBlockMatch* Match, const AMMBlock* TriggeringBlock);
+	bool PerformActionType(const FMatchActionType& MatchActionType, const UBlockMatch* Match, const AMMBlock* TriggeringBlock, const bool bDestroyOnly);
 
 	//### Check for Locked Grid
 
@@ -394,6 +414,9 @@ public:
 
 	/** Handles destruction of a block via damage. */
 	void BlockDestroyedByDamage(AMMBlock* Block);
+
+	/** Handles destruction of a block due to a game effect. */
+	void BlockDestroyedByGameEffect(AMMBlock* Block);
 
 	/** Handles destruction of a block via a match action. */
 	void BlockDestroyedByMatchAction(AMMBlock* Block);
