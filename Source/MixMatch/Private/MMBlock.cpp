@@ -25,7 +25,7 @@ AMMBlock::AMMBlock()
 		FConstructorStatics()
 			: PlaneMesh(TEXT("/Game/MixMatch/Assets/Meshes/PuzzleCube.PuzzleCube"))
 			, BaseMaterial(TEXT("/Game/MixMatch/Assets/Materials/BlockBase_M.BlockBase_M"))
-			, AltMaterial(TEXT("/Game/MixMatch/Assets/Materials/BlockBlue_MI.BlockBlue_MI"))
+			, AltMaterial(TEXT("/Game/MixMatch/Assets/Materials/BlockBase_M.BlockBase_M"))
 		{
 		}
 	};
@@ -397,7 +397,7 @@ void AMMBlock::OnFingerPressedBlock(ETouchIndex::Type FingerIndex, UPrimitiveCom
 void AMMBlock::HandleClicked()
 {
 	AMMPlayerController* PC = Cast<AMMPlayerController>(UGameplayStatics::GetPlayerController(GetWorld(), 0));
-	if (PC && PC->GetLastInputContext() == EMMInputContext::InPlayGrid)
+	if (PC && (PC->GetLastInputContext() == EMMInputContext::InPlayGrid || PC->GetLastInputContext() == EMMInputContext::EffectSelect))
 	{
 		// Tell the Grid
 		if (Grid() != nullptr) {
@@ -478,6 +478,14 @@ void AMMBlock::OnMatched_Implementation(UBlockMatch* Match)
 		GetBlockMesh()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 	}
 	CurrentMatches.AddUnique(Match);
+}
+
+
+void AMMBlock::OnBlockDestroyed_Implementation()
+{
+	if (GetBlockMesh()) {
+		GetBlockMesh()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	}
 }
 
 

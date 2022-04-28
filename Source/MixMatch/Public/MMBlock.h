@@ -58,6 +58,9 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = Block)
 	TSoftObjectPtr<USoundBase> StopMoveSound;
 
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = Block)
+	TSoftObjectPtr<USoundBase> DestroySound;
+
 	/** Optional curve modifying block's movement speed along it's travels. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = Block)
 	UCurveFloat* MoveCurve;
@@ -139,7 +142,8 @@ public:
 	UFUNCTION(BlueprintNativeEvent)
 	bool MoveTick(float DeltaSeconds);
 
-	/** Base class does nothing but call MatchFinished on all current matches that this block is in. */
+	/** Base class does nothing but call MatchFinished on all current matches that this block is in. 
+	 *  Subclasses should override this with meaningful implementation. (see BlockBase blueprint)*/
 	UFUNCTION(BlueprintNativeEvent)
 	bool MatchTick(float DeltaSeconds);
 
@@ -240,6 +244,10 @@ public:
 	UFUNCTION(BlueprintNativeEvent)
 	void OnMatched(UBlockMatch* Match);
 	virtual void OnMatched_Implementation(UBlockMatch* Match);
+
+	/** Block has been destroyed outside of a match */
+	UFUNCTION(BlueprintNativeEvent)
+	void OnBlockDestroyed();
 
 	/** Grid calls when block is unsettled. */
 	UFUNCTION(BlueprintNativeEvent)

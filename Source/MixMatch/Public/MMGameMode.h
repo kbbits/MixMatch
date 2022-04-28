@@ -168,10 +168,12 @@ public:
 
 	/** GameEffects stuff */
 
-	/** Perform the given GameEffect associated with this action.
+	/** Perform the given GameEffect in the GameEffectContext at the EffectCoords.
 	 * Returns: true if action operation was successful. */
-	UFUNCTION(BlueprintNativeEvent, BlueprintCallable)
-	bool AddGameEffect(const FGameEffectContext& EffectContext, const TArray<FIntPoint>& EffectCoords);
+	UFUNCTION(BlueprintCallable)
+	bool AddGameEffectContext(const FGameEffectContext& EffectContext, const TArray<FIntPoint>& EffectCoords);
+
+	bool AddGameEffect(UGameEffect* GameEffect, const TArray<FIntPoint>& EffectCoords);
 
 	/** Increment each active effect by one turn.  End any effects with no remaining duration. */
 	UFUNCTION()

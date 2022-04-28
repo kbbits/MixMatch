@@ -13,6 +13,14 @@ UGameEffectDestroyColumn::UGameEffectDestroyColumn()
 }
 
 
+void UGameEffectDestroyColumn::SetEffectParams_Implementation(const FGameEffectContext& EffectContext)
+{
+	if (EffectContext.FloatParams.IsValidIndex(0)) {
+		BlockDamage = (int32)EffectContext.FloatParams[0];
+	}
+}
+
+
 TArray<FIntPoint> UGameEffectDestroyColumn::GetEffectedCoords_Implementation(const FIntPoint SelectedCoords)
 {
 	TArray<FIntPoint> AllDestroyCoords;

@@ -14,6 +14,7 @@
 
 class ACraftingToolActor;
 class UActionBarItem;
+//class UUsableGoodsContext;
 
 // Event dispatcher for when CurrentGrid changes to different grid
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnCurrentGridChanged, const AMMPlayGrid*, NewCurrentGrid);
@@ -103,6 +104,9 @@ protected:
 	UPROPERTY(BlueprintReadWrite)
 	ACraftingToolActor* CurrentTool = nullptr;
 
+	UPROPERTY(BlueprintReadOnly)
+	int32 CurrentActionBarItemIndex = -1;
+
 	UPROPERTY(SaveGame)
 	int32 ActionBarSize = 0;
 
@@ -143,6 +147,12 @@ public:
 	UFUNCTION(BlueprintCallable, meta = (ExpandBoolAsExecs = bIsValid))
 	AMMPlayGrid* GetCurrentGridValid(bool& bIsValid);
 
+	UFUNCTION(BlueprintNativeEvent)
+	void GridCellHovered(const FIntPoint HoveredCoords);
+
+	UFUNCTION(BlueprintNativeEvent)
+	void GridCellUnhovered(const FIntPoint UnhoveredCoords);
+
 	UFUNCTION(BlueprintCallable)
 	void CollectGoods(const TArray<FGoodsQuantity> CollectedGoods);
 
@@ -157,7 +167,7 @@ public:
 
 	/** Returns the number of available slots in action bar.
 	 *  Note that slot numbers (indexes) in action bar are 0 based. So max valid slot number = action bar size - 1. */
-	UFUNCTION(BlueprintCallable)
+	UFUNCTION(BlueprintPure)
 	int32 GetActionBarSize();
 
 	/** Set the size of the action bar. This will shrink or grow the ActionBarItems array as needed. */
@@ -175,10 +185,27 @@ public:
 	UFUNCTION(BlueprintCallable)
 	bool SetActionBarItemByName(const FName& UsableGoodsName, const int32 SlotIndex);
 
+	/** Use the item in the given action bar slot.  If the item requires a selection and SelectedCoords == FIntPoint::NoneValue (or SelectCoords X & Y both < 0), 
+	 *  this will hand it off to GetSelectionForActionBarItem*/
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable)
+	void UseActionBarItem(const int32 SlotIndex, const FIntPoint& SelectedCoords);
+
+	UFUNCTION(BlueprintNativeEvent)
+	void GetSelectionForActionBarItem(const int32 SlotIndex);
+
+	UFUNCTION(BlueprintNativeEvent)
+	void ActionBarSelectionFinished(const FIntPoint& SelectedCoords);
+
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable)
+	void CancelActionBarSelection();
+
 	/** Removes and cleans up any action bar item at the given slot index. 
 	 *  If bFireEvents = true then the OnActionBarItemChanged event will be dispatched. */
 	UFUNCTION(BlueprintCallable)
 	void ClearActionBarItem(const int32 SlotIndex, const bool bFireEvents = true);
+
+	//UFUNCTION(BlueprintCallable)
+	//void UseUsableGoods(const UUsableGoodsContext* UsableGoodsContext);
 
 	UFUNCTION(BlueprintCallable)
 	void HandleToolClicked(UPARAM(ref) ACraftingToolActor* ClickedTool);

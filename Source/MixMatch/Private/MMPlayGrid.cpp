@@ -15,9 +15,10 @@
 #include "MMGameMode.h"
 #include "InventoryActorComponent.h"
 #include "MMPlayerController.h"
-//#include "GameEffect/GameEffectSpawnBlocksBase.h"
+#include "GameEffect/GameEffectPreviewActor.h"
 #include "Goods/GoodsQuantity.h"
 #include "Goods/GoodsFunctionLibrary.h"
+#include "Goods/UsableGoodsContext.h"
 
 
 #define LOCTEXT_NAMESPACE "MMPlayGrid"
@@ -109,7 +110,10 @@ void AMMPlayGrid::Tick(float DeltaSeconds)
 		//MatchTick(DeltaSeconds);
 		if (BlockMatches.Num() == 0)
 		{
-			if (UnsettledBlocks.Num() > 0 || ToBeUnsettledBlocks.Num() > 0) {
+			if (BlocksToDestroy.Num() > 0) {
+				AllMatchesFinished();
+			}
+			else if (UnsettledBlocks.Num() > 0 || ToBeUnsettledBlocks.Num() > 0) {
 				SettleBlocks();
 			}
 			else if(BlocksToCheck.Num() > 0) {
@@ -129,12 +133,19 @@ void AMMPlayGrid::Tick(float DeltaSeconds)
 		SettleTick(DeltaSeconds);
 		break;
 	case EMMGridState::Normal:
-		if (GridLockedState == EMMGridLockState::Unchecked || GridLockedState == EMMGridLockState::Checking) 
+		if (BlocksToDestroy.Num() > 0)
 		{
-			if (CheckGridIsLocked() == EMMGridLockState::Locked)
+			GridState = EMMGridState::Matching;
+		}
+		else 
+		{
+			if (GridLockedState == EMMGridLockState::Unchecked || GridLockedState == EMMGridLockState::Checking)
 			{
-				// Call delegate
-				OnGridLocked.Broadcast(this);
+				if (CheckGridIsLocked() == EMMGridLockState::Locked)
+				{
+					// Call delegate
+					OnGridLocked.Broadcast(this);
+				}
 			}
 		}
 		break;
@@ -235,6 +246,38 @@ bool AMMPlayGrid::SetBlockTypeSetName(const FName& NewBlockTypeSetName)
 FName AMMPlayGrid::GetBlockTypeSetName()
 {
 	return BlockTypeSetName;
+}
+
+
+void AMMPlayGrid::AddPlayerMaxMoveCount(const int32 MovesToAdd)
+{
+	int32 ValidMovesToAdd = MovesToAdd;
+	// Don't let max moves go below 1 if it was already above 1.
+	if (MaxPlayerMovesCount > 0 && (MaxPlayerMovesCount + MovesToAdd < 1)) {
+		ValidMovesToAdd = MaxPlayerMovesCount - 1;
+	}
+	MaxPlayerMovesCount += ValidMovesToAdd;
+	OnPlayerMoved.Broadcast(this);
+	if (MaxPlayerMovesCount > 0 && PlayerMovesCount >= MaxPlayerMovesCount) {
+		OnMaxPlayerMoves.Broadcast(this);
+	}
+}
+
+
+bool AMMPlayGrid::IncrementPlayerMoveTurn()
+{
+	PlayerMovesCount++;
+	// Tell GameMode to increment effects
+	AMMGameMode* GameMode = Cast<AMMGameMode>(UGameplayStatics::GetGameMode(this));
+	if (GameMode) {
+		GameMode->IncrementGameEffectsTurn();
+	}
+	OnPlayerMoved.Broadcast(this);
+	if (MaxPlayerMovesCount > 0 && PlayerMovesCount >= MaxPlayerMovesCount) {
+		OnMaxPlayerMoves.Broadcast(this);
+		return false;
+	}
+	return true;
 }
 
 
@@ -782,10 +825,10 @@ FBoxSphereBounds AMMPlayGrid::GetVisibleGridBounds()
 {
 	FBoxSphereBounds VisBounds;
 	VisBounds.BoxExtent.X = (((float)BlockSize.X + CellBackgroundMargin) * (float)SizeX) / 2.f;
-	VisBounds.BoxExtent.Z = (((float)BlockSize.Z + CellBackgroundMargin) * (float)SizeY) / 2.f;
+	VisBounds.BoxExtent.Z = ((((float)BlockSize.Z + CellBackgroundMargin) * (float)SizeY)/ 2.f) + GridMarginTop + GridMarginBottom;
 	VisBounds.BoxExtent.Y = (CellBackgroundOffset + BlockSize.Y) / 2.f;
 	VisBounds.SphereRadius = VisBounds.BoxExtent.Size();
-	VisBounds.Origin = FVector(0.f, -VisBounds.BoxExtent.Y, VisBounds.BoxExtent.Z);
+	VisBounds.Origin = FVector(0.f, -VisBounds.BoxExtent.Y, VisBounds.BoxExtent.Z + GridMarginTop - GridMarginBottom);
 	return VisBounds.TransformBy(GetActorTransform());
 }
 
@@ -794,6 +837,17 @@ void AMMPlayGrid::BlockClicked(AMMBlock* Block)
 {
 	if (GridState != EMMGridState::Normal || (Block && Block->BlockState != EMMGridState::Normal)) {
 		return; 
+	}
+	AMMPlayerController* PC = Cast<AMMPlayerController>(UGameplayStatics::GetPlayerController(GetWorld(), 0));
+	if (PC->GetLastInputContext() == EMMInputContext::EffectSelect)
+	{
+		if (SelectedBlock)
+		{
+			SelectedBlock->Cell()->Highlight(false);
+			SelectedBlock = nullptr;
+		}
+		PC->ActionBarSelectionFinished(Block->GetCoords());
+		return;
 	}
 	if (SelectedBlock == nullptr) 
 	{
@@ -813,7 +867,6 @@ void AMMPlayGrid::BlockClicked(AMMBlock* Block)
 			AMMPlayGridCell* SelectedCell = SelectedBlock->Cell();
 			if (MoveBlock(SelectedBlock, Block->Cell()))
 			{
-				//PlayerMovesCount++;
 				Block->Cell()->Highlight(false);
 				SelectedBlock->Cell()->Highlight(false);
 				SelectedBlock = nullptr;
@@ -842,6 +895,17 @@ void AMMPlayGrid::CellClicked(AMMPlayGridCell* Cell)
 		BlockClicked(Cell->CurrentBlock);
 		return;
 	}
+	AMMPlayerController* PC = Cast<AMMPlayerController>(UGameplayStatics::GetPlayerController(GetWorld(), 0));
+	if (PC && PC->GetLastInputContext() == EMMInputContext::EffectSelect)
+	{
+		if (SelectedBlock)
+		{
+			SelectedBlock->Cell()->Highlight(false);
+			SelectedBlock = nullptr;
+		}
+		PC->ActionBarSelectionFinished(Cell->GetCoords());
+		return;
+	}
 	if (IsValid(SelectedBlock))
 	{
 		if (UMMMath::CoordsAdjacent(Cell->GetCoords(), SelectedBlock->GetCoords()))
@@ -849,12 +913,70 @@ void AMMPlayGrid::CellClicked(AMMPlayGridCell* Cell)
 			AMMPlayGridCell* SelectedCell = SelectedBlock->Cell();
 			if (MoveBlock(SelectedBlock, Cell))
 			{
-				//PlayerMovesCount++;
 				Cell->Highlight(false);
 				SelectedCell->Highlight(false);
 				SelectedBlock = nullptr;
 			}
 		}
+	}
+}
+
+
+void AMMPlayGrid::PreviewUsableGoodsSelection(UUsableGoodsContext* UsableGoodsContext)
+{
+	TArray<UGameEffect*> GameEffects;
+	UsableGoodsContext->GetGameEffects(GameEffects);
+	for (UGameEffect* GameEffect : GameEffects)
+	{
+		if (IsValid(GameEffect) && UsableGoodsContext->SelectedCoords.IsValidIndex(0)) 
+		{
+			TArray<FIntPoint> EffectedCoords = GameEffect->GetEffectedCoords(UsableGoodsContext->SelectedCoords[0]);
+			for (FIntPoint Coord : EffectedCoords) {
+				ShowEffectPreviewForCoords(GameEffect, Coord);
+			}
+		}
+	}
+}
+
+
+void AMMPlayGrid::ShowEffectPreviewForCoords_Implementation(const UGameEffect* GameEffect, const FIntPoint& Coords)
+{
+	FActorSpawnParameters SpawnParams;
+	SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+	SpawnParams.Owner = this;
+	FVector SpawnCoords = GetActorTransform().TransformPosition(GridCoordsToLocalLocation(Coords) + FVector(0.0f, BlockSize.Y * 0.55f, 0.0f));
+	FVector SpawnCoordsTwo = GridCoordsToWorldLocation(Coords) + FVector(0.0f, BlockSize.Y * 0.55f, 0.0f);
+	// Spawn a preview actor
+	AGameEffectPreviewActor* PreviewActor = nullptr;
+	if (GameEffect && GameEffect->EffectPreviewClass != nullptr) {
+		UE_LOG(LogMMGame, Log, TEXT("Spawning preview effect %s at %s (other coords %s)"), *GameEffect->EffectPreviewClass->GetName(), *SpawnCoords.ToString(), *SpawnCoordsTwo.ToString());
+		PreviewActor = GetWorld()->SpawnActor<AGameEffectPreviewActor>(GameEffect->EffectPreviewClass, SpawnCoords, GetActorRotation(), SpawnParams);
+	}
+	else {
+		UE_LOG(LogMMGame, Log, TEXT("Spawning preview effect %s at %s"), *AGameEffectPreviewActor::StaticClass()->GetName(), *SpawnCoords.ToString());
+		PreviewActor = GetWorld()->SpawnActor<AGameEffectPreviewActor>(AGameEffectPreviewActor::StaticClass(), SpawnCoords, GetActorRotation(), SpawnParams);
+	}
+	if (PreviewActor)
+	{
+		// TODO: Set preview actor scale by grid's scale.
+		PreviewActor->OwningGrid = this;
+		PreviewActor->StartPreview();
+		EffectPreviewActors.Add(PreviewActor);
+	}
+}
+
+
+void AMMPlayGrid::ClearUsableGoodsPreviews()
+{
+	if (EffectPreviewActors.Num() > 0)
+	{
+		for (AGameEffectPreviewActor* PreviewActor : EffectPreviewActors)
+		{
+			if (IsValid(PreviewActor)) {
+				PreviewActor->DestroyPreviewActor();
+			}
+		}
+		EffectPreviewActors.Empty();
 	}
 }
 
@@ -951,6 +1073,7 @@ bool AMMPlayGrid::MoveBlock(AMMBlock* MovingBlock, AMMPlayGridCell* ToCell)
 	}
 	else
 	{
+		// There was a match, so we can do the move
 		UE_CLOG(bDebugLog, LogMMGame, Log, TEXT("  MoveBlock %s block moved to to %s"), *MovingBlock->GetName(), *ToCell->GetCoords().ToString());
 		GridLockedState = EMMGridLockState::Unchecked;
 		MovingBlock->bMovedByPlayer = true;
@@ -969,16 +1092,7 @@ bool AMMPlayGrid::MoveBlock(AMMBlock* MovingBlock, AMMPlayGridCell* ToCell)
 		}
 		BlockMatches.Append(CurrentMatches);
 		SortMatches();
-		PlayerMovesCount++;
-		// Tell GameMode to increment effects
-		AMMGameMode* GameMode = Cast<AMMGameMode>(UGameplayStatics::GetGameMode(this));
-		if (GameMode) {
-			GameMode->IncrementGameEffectsTurn();
-		}
-		OnPlayerMoved.Broadcast(this);
-		if (MaxPlayerMovesCount > 0 && PlayerMovesCount >= MaxPlayerMovesCount) {
-			OnMaxPlayerMoves.Broadcast(this);
-		}
+		IncrementPlayerMoveTurn();
 		bAllMatchesFinished = false;
 	}
 	// TODO: Remove this debug
@@ -1484,7 +1598,7 @@ bool AMMPlayGrid::PerformActionType(const FMatchActionType& MatchActionType, con
 					UE_CLOG(bDebugLog, LogMMGame, Log, TEXT("    %s"), *LogCoords.ToString());
 				}
 			}
-			GameMode->AddGameEffect(EffectContext, EffectCoords);
+			GameMode->AddGameEffectContext(EffectContext, EffectCoords);
 			bSuccess = true;
 		}
 	}
@@ -1753,6 +1867,9 @@ void AMMPlayGrid::AllMatchesFinished()
 					OnBlockDestroyedAwards.Broadcast(Block, TmpGoodsSet.Goods);
 				}
 			}
+			// TODO: change this sound to a DestroyedSound
+			PlaySoundQueue.AddUnique(Block->DestroySound.Get());
+			Block->OnBlockDestroyed();
 			AMMPlayGridCell* BlockCell = Block->Cell();
 			Blocks.RemoveSingle(Block);
 			UnsettledBlocks.RemoveSingle(Block);
@@ -1765,14 +1882,6 @@ void AMMPlayGrid::AllMatchesFinished()
 		}
 	}
 	BlocksToDestroy.Empty();
-	//if (DestroyedGoods.Num() > 0)
-	//{
-		//AMMPlayerController* PC = Cast<AMMPlayerController>(UGameplayStatics::GetPlayerController(GetWorld(), 0));
-		//PC->CollectGoods(TotalGoods);
-	//	GoodsInventory->AddSubtractGoodsArray(DestroyedGoods, false);
-	//	OnBlockDestroyedAwards()
-	//	DestroyedGoods.Empty();
-	//}
 	if (!bPauseNewBlocks) 
 	{
 		// Drop blocks in column above each empty cell
@@ -1831,6 +1940,7 @@ void AMMPlayGrid::BlockDestroyedByGameEffect(AMMBlock* Block)
 			Block->OwningGridCell->CurrentBlock = nullptr;
 		}
 		BlocksToDestroy.AddUnique(Block);
+		
 	}
 	else {
 		UE_CLOG(bDebugLog, LogMMGame, Warning, TEXT("MMPlayGrid::BlockDestroyedByGameEffect - Did not destroy block %s at %d"), *Block->GetName(), *Block->GetCoords().ToString());

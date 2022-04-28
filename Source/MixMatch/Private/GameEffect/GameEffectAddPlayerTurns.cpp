@@ -2,6 +2,7 @@
 
 #include "GameEffect/GameEffectAddPlayerTurns.h"
 #include "Kismet/GameplayStatics.h"
+#include "MixMatch/MixMatch.h"
 #include "MMPlayerController.h"
 #include "MMPlayGrid.h"
 
@@ -10,6 +11,7 @@
 UGameEffectAddPlayerTurns::UGameEffectAddPlayerTurns()
 	: Super()
 {
+	NumSelections = 0;
 	BlockHandling = EMMBlockHandling::General;
 }
 
@@ -41,11 +43,12 @@ bool UGameEffectAddPlayerTurns::CanTrigger_Implementation(const TArray<FIntPoint
 
 bool UGameEffectAddPlayerTurns::BeginEffect_Implementation(const TArray<FIntPoint>& PerformCoords)
 {
+	UE_LOG(LogMMGame, Log, TEXT("UGameEffectAddPlayerTurns::BeginEffect - adding %d moves to player."), NumToAdd);
 	if (NumToAdd == 0) { return true; }
 	AMMPlayerController* PC = Cast<AMMPlayerController>(UGameplayStatics::GetPlayerController(GetWorld(), 0));
 	if (!IsValid(PC)) { return false; }
 	AMMPlayGrid* Grid = PC->GetCurrentGrid();
 	if (!IsValid(Grid)) { return false;	}
-	Grid->MaxPlayerMovesCount += NumToAdd;
+	Grid->AddPlayerMaxMoveCount(NumToAdd);
 	return true;
 }

@@ -4,6 +4,7 @@
 #include "Engine/Texture2D.h"
 #include "MMEnums.h"
 #include "SimpleNamedTypes.h"
+#include "GameEffect/GameEffectPreviewActor.h"
 #include "GameEffect.generated.h"
 
 
@@ -54,6 +55,14 @@ class MIXMATCH_API UGameEffect : public UObject
 {
 	GENERATED_BODY()
 
+public:
+	// Thumbnail for GUI use
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, SaveGame)
+	TSoftObjectPtr<UTexture2D> Thumbnail;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, SaveGame)
+	TSubclassOf<AGameEffectPreviewActor> EffectPreviewClass;
+
 protected:
 
 	// The number of selections required. Default is 0, i.e. no selection required.
@@ -62,10 +71,6 @@ protected:
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, SaveGame)
 	EMMBlockHandling BlockHandling;
-
-	// Thumbnail for GUI use
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, SaveGame)
-	TSoftObjectPtr<UTexture2D> Thumbnail;
 
 	// How many player turns (block moves) this effect lasts.
 	// Default = 0 , meaning instant.

@@ -1,5 +1,5 @@
 #include "ActionBarItem.h"
-#include "Goods/UsableGoodsType.h"
+#include "Goods/UsableGoodsContext.h"
 
 /*
 */
@@ -11,14 +11,18 @@ UActionBarItem::UActionBarItem()
 
 void UActionBarItem::Cleanup()
 {
-	UsableGoods = nullptr;
+	if (UsableGoodsContext)
+	{
+		UsableGoodsContext->Cleanup();
+		UsableGoodsContext = nullptr;
+	}
 }
 
 
 FName UActionBarItem::GetName()
 {
-	if (UsableGoods) {
-		return UsableGoods->GetName();
+	if (UsableGoodsContext && UsableGoodsContext->GetUsableGoods()) {
+		return UsableGoodsContext->GetUsableGoods()->GetName();
 	}
 	return NAME_None;
 }

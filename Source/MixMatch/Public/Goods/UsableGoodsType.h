@@ -23,8 +23,11 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame)
 	TArray<FGameEffectContext> GameEffects;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = Block)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame)
 	TSoftObjectPtr<USoundBase> UseSound;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame)
+	FText UseDescription;
 
 };
 

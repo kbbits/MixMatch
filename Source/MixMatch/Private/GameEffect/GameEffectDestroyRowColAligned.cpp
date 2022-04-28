@@ -14,6 +14,13 @@ UGameEffectDestroyRowColAligned::UGameEffectDestroyRowColAligned()
 {
 }
 
+void UGameEffectDestroyRowColAligned::SetEffectParams_Implementation(const FGameEffectContext& EffectContext)
+{
+	if (EffectContext.FloatParams.IsValidIndex(0)) {
+		BlockDamage = (int32)EffectContext.FloatParams[0];
+	}
+}
+
 
 bool UGameEffectDestroyRowColAligned::BeginEffect_Implementation(const TArray<FIntPoint>& PerformCoords)
 {

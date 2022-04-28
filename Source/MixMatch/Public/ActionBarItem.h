@@ -2,7 +2,7 @@
 
 #include "ActionBarItem.generated.h"
 
-class UUsableGoods;
+class UUsableGoodsContext;
 
 /*
 * Contains the full details for goods types that are "usable" by the player.
@@ -17,7 +17,7 @@ public:
 
 	/** Instance of UsableGoods occupying this slot. */
 	UPROPERTY(BlueprintReadOnly)
-	UUsableGoods* UsableGoods;
+	UUsableGoodsContext* UsableGoodsContext;
 
 public:
 

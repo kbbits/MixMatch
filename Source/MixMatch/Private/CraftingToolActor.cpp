@@ -31,6 +31,7 @@ void ACraftingToolActor::CalcCamera(float DeltaTime, struct FMinimalViewInfo& Ou
 	FBoxSphereBounds GridBounds = GetVisibleGridBounds();
 	OutResult.FOV = ViewFOV;
 	OutResult.Rotation = (GetGridFacing() * -1.0f).Rotation();
+	float GridMarginVAdjustment = GridBounds.Origin.Z - GridBounds.BoxExtent.Z;
 	float DistanceH = (GridBounds.BoxExtent.X + GridMarginH) / FMath::Tan(FMath::DegreesToRadians(OutResult.FOV) / 2.0f);
 	float DistanceV = (GridBounds.BoxExtent.Z + GridMarginV) / FMath::Tan((FMath::DegreesToRadians(OutResult.FOV) / OutResult.AspectRatio) / 2.0f);
 	OutResult.Location = GridBounds.Origin + (GetGridFacing() * (FMath::Max(DistanceH,DistanceV) + ExtraCameraDistance));

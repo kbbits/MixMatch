@@ -7,6 +7,7 @@
 UGameEffect::UGameEffect()
 	: Super()
 {
+	EffectPreviewClass = AGameEffectPreviewActor::StaticClass();
 }
 
 
@@ -18,7 +19,7 @@ void UGameEffect::SetEffectParams_Implementation(const FGameEffectContext& Effec
 
 bool UGameEffect::RequiresSelection()
 {
-	return NumSelections == 0;
+	return NumSelections > 0;
 }
 
 

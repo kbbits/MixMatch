@@ -13,6 +13,8 @@ UGameEffectDestroyBlocksBase::UGameEffectDestroyBlocksBase()
 {
 	NumSelections = 1;
 	BlockHandling = EMMBlockHandling::DestroysBlocks;
+	static ConstructorHelpers::FClassFinder<AGameEffectPreviewActor> PreviewClassFinder(TEXT("/Game/MixMatch/Blueprints/GameEffects/GameEffectPreviewActor_BP"));
+	EffectPreviewClass = PreviewClassFinder.Class;
 }
 
 
@@ -94,13 +96,13 @@ bool UGameEffectDestroyBlocksBase::BeginEffect_Implementation(const TArray<FIntP
 		{
 			if (Block->CanBeDamaged())
 			{
-				UE_LOG(LogMMGame, Warning, TEXT("GameEffectDestroyBlocksBase::BeginEffect damaging block at %s"), *Block->GetCoords().ToString());
+				UE_LOG(LogMMGame, Log, TEXT("GameEffectDestroyBlocksBase::BeginEffect damaging block at %s"), *Block->GetCoords().ToString());
 				Block->TakeDamage(BlockDamage);
 				DestroyedBlockCoords.Add(Coord);
 			}
 			else 
 			{
-				UE_LOG(LogMMGame, Warning, TEXT("GameEffectDestroyBlocksBase::BeginEffect queueing for destruction %s"), *Block->GetCoords().ToString());
+				UE_LOG(LogMMGame, Log, TEXT("GameEffectDestroyBlocksBase::BeginEffect queueing for destruction %s"), *Block->GetCoords().ToString());
 				DestroyedBlockCoords.Add(Coord);
 				Grid->BlockDestroyedByGameEffect(Block);
 			}

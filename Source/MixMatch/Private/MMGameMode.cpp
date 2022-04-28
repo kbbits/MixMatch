@@ -476,17 +476,24 @@ void AMMGameMode::CacheAssets(const TArray<FSoftObjectPath> AssetsToCache, const
 }
 
 
-bool AMMGameMode::AddGameEffect_Implementation(const FGameEffectContext& EffectContext, const TArray<FIntPoint>& EffectCoords)
+bool AMMGameMode::AddGameEffectContext(const FGameEffectContext& EffectContext, const TArray<FIntPoint>& EffectCoords)
 {
 	UGameEffect* GameEffect = NewObject<UGameEffect>(this, EffectContext.GameEffectClass);
+	if (GameEffect == nullptr) { return false; }
+	GameEffect->SetEffectParams(EffectContext);
+	return AddGameEffect(GameEffect, EffectCoords);
+}
+
+
+bool AMMGameMode::AddGameEffect(UGameEffect* GameEffect, const TArray<FIntPoint>& EffectCoords)
+{
 	bool bSuccess = false;
 	if (GameEffect)
-	{
-		GameEffect->SetEffectParams(EffectContext);
-		if (GameEffect->CanTrigger(EffectCoords)) 
+	{		
+		if (GameEffect->CanTrigger(EffectCoords))
 		{
 			bSuccess = GameEffect->BeginEffect(EffectCoords);
-			if (bSuccess) 
+			if (bSuccess)
 			{
 				OnGameEffectBegan.Broadcast(GameEffect, EffectCoords);
 				// If effect has no duration end it immediately, don't put it in the queue.
@@ -497,6 +504,9 @@ bool AMMGameMode::AddGameEffect_Implementation(const FGameEffectContext& EffectC
 					ActiveGameEffects.Add(GameEffect);
 				}
 			}
+		}
+		else {
+			UE_LOG(LogMMGame, Log, TEXT("MMGameMode::AddGameEffect - Effect %s cannot trigger at coords %s"), *GameEffect->GetClass()->GetName(), *EffectCoords[0].ToString());
 		}
 	}
 	return bSuccess;

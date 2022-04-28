@@ -74,6 +74,12 @@ public:
 	UPROPERTY(EditAnywhere)
 	FName BlockTypeSetName;
 
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
+	float GridMarginTop = 0.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
+	float GridMarginBottom = 100.0f;
+
 	/** If true, blocks will be scaled to fill BlockSize - BlockMargin in it's cell. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 	bool bScaleBlocks;
@@ -164,6 +170,9 @@ protected:
 	UPROPERTY()
 	TArray<USoundBase*> PlaySoundQueue;
 
+	UPROPERTY()
+	TArray<class AGameEffectPreviewActor*> EffectPreviewActors;
+
 	/** Have all current matches finished? */
 	bool bAllMatchesFinished = false;
 
@@ -242,6 +251,15 @@ public:
 	/** Get the name of the curent BlockTypeSet the grid is using. */
 	UFUNCTION(BlueprintPure)
 	FName GetBlockTypeSetName();
+
+	/** Add a number of moves to the max allowed for the current grid. */
+	UFUNCTION(BlueprintCallable)
+	void AddPlayerMaxMoveCount(const int32 MovesToAdd);
+
+	/** Increments the number of move turns the player has made.
+	 *  Returns true if more move turns remain. */
+	UFUNCTION(BlueprintCallable)
+	bool IncrementPlayerMoveTurn();
 
 	//### Spawn Destroy **/
 
@@ -332,6 +350,16 @@ public:
 	void BlockClicked(AMMBlock* Block);
 
 	void CellClicked(AMMPlayGridCell* Cell);
+
+	/** Apply selection preview FX for our grid effects. */
+	UFUNCTION()
+	void PreviewUsableGoodsSelection(UUsableGoodsContext* UsableGoodsContext);
+
+	UFUNCTION(BlueprintNativeEvent)
+	void ShowEffectPreviewForCoords(const UGameEffect* GameEffect, const FIntPoint& Coords);
+
+	UFUNCTION(BlueprintCallable)
+	void ClearUsableGoodsPreviews();
 
 	UFUNCTION()
 	void ToggleBlocksClicked(UPrimitiveComponent* ClickedComp, FKey ButtonClicked);

@@ -41,6 +41,9 @@ public:
 	UFUNCTION(BlueprintCallable)
 	void GetGameEffects(TArray<UGameEffect*>& GameEffects);
 
+	UFUNCTION(BlueprintCallable)
+	bool RequiresSelection();
+	
 	/** Cleans out external references and internal caches */
 	UFUNCTION(BlueprintCallable)
 	void Cleanup();

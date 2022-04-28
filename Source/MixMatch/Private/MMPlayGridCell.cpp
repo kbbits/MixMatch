@@ -38,7 +38,7 @@ AMMPlayGridCell::AMMPlayGridCell()
 	CellMesh->OnClicked.AddDynamic(this, &AMMPlayGridCell::CellClicked);
 	CellMesh->OnInputTouchBegin.AddDynamic(this, &AMMPlayGridCell::OnFingerPressedCell);
 
-	// Save a pointer to the orange material
+	// Save a pointer to the materials
 	BaseMaterial = ConstructorStatics.BaseMaterial.Get();
 	AltMaterial = ConstructorStatics.AltMaterial.Get();
 	CurrentBlock = nullptr;

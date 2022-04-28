@@ -9,8 +9,7 @@
 
 
 /**
- * FloatParams[0] : Number of blocks to destroy from list of coords provided.
- * FloatParams[1] : BlockDamage applied to damage-able blocks. Truncated before applied. Defaults to 1.
+ * FloatParams[0] : BlockDamage applied to damage-able blocks. Truncated before applied. Defaults to 1.
  */
 UCLASS(BlueprintType, Blueprintable)
 class MIXMATCH_API UGameEffectDestroyRow : public UGameEffectDestroyBlocksBase
@@ -21,6 +20,8 @@ class MIXMATCH_API UGameEffectDestroyRow : public UGameEffectDestroyBlocksBase
 public:
 	// Constructor
 	UGameEffectDestroyRow();
+
+	virtual void SetEffectParams_Implementation(const FGameEffectContext& EffectContext) override;
 
 	virtual TArray<FIntPoint> GetEffectedCoords_Implementation(const FIntPoint SelectedCoords) override;
 

@@ -8,6 +8,7 @@
 #include "MMGameMode.h"
 #include "CraftingToolActor.h"
 #include "ActionBarItem.h"
+#include "Goods/UsableGoodsContext.h"
 
 
 AMMPlayerController::AMMPlayerController()
@@ -148,6 +149,31 @@ AMMPlayGrid* AMMPlayerController::GetCurrentGridValid(bool& bIsValid)
 }
 
 
+void AMMPlayerController::GridCellHovered_Implementation(const FIntPoint HoveredCoords)
+{
+	if (GetLastInputContext() == EMMInputContext::EffectSelect && CurrentActionBarItemIndex >= 0)
+	{
+		if (GetCurrentGrid() == nullptr) { return; }
+		UActionBarItem* ActionBarItem = GetActionBarItem(CurrentActionBarItemIndex);
+		if (ActionBarItem == nullptr || ActionBarItem->UsableGoodsContext == nullptr) {
+			return;
+		}
+		ActionBarItem->UsableGoodsContext->SelectedCoords.Empty(1);
+		ActionBarItem->UsableGoodsContext->SelectedCoords.Add(HoveredCoords);
+		GetCurrentGrid()->PreviewUsableGoodsSelection(ActionBarItem->UsableGoodsContext);
+	}
+}
+
+
+void AMMPlayerController::GridCellUnhovered_Implementation(const FIntPoint UnhoveredCoords)
+{
+	if (GetLastInputContext() == EMMInputContext::EffectSelect && CurrentActionBarItemIndex >= 0)
+	{
+		GetCurrentGrid()->ClearUsableGoodsPreviews();
+	}
+}
+
+
 void AMMPlayerController::CollectGoods(const TArray<FGoodsQuantity> CollectedGoods)
 {
 	GoodsInventory->ServerAddSubtractGoodsArray(CollectedGoods, false, true);
@@ -223,6 +249,7 @@ bool AMMPlayerController::SetActionBarItemByName(const FName& UsableGoodsName, c
 		SetActionBarSize(ActionBarSize);
 	}
 	bool bFound = false;
+	UUsableGoodsContext* UsableGoodsContext = nullptr;
 	UUsableGoods* UsableGoods = nullptr;
 	if (UsableGoodsName != NAME_None) 
 	{
@@ -235,16 +262,22 @@ bool AMMPlayerController::SetActionBarItemByName(const FName& UsableGoodsName, c
 	{
 		// Clear any current item at the index, don't fire events.
 		ClearActionBarItem(SlotIndex, false);
-		// Create the new ActionBarItem
-		UActionBarItem* Item = NewObject<UActionBarItem>(this, UActionBarItem::StaticClass());
-		if (Item) 
+		// Create the usable goods context
+		UsableGoodsContext = NewObject<UUsableGoodsContext>(this, UUsableGoodsContext::StaticClass());
+		if (UsableGoodsContext)
 		{
-			// Init its properties and add it to the action bar items array
-			Item->UsableGoods = UsableGoods;
-			ActionBarItems[SlotIndex] = Item;
-			// Fire notification
-			OnActionBarItemChanged.Broadcast(SlotIndex, Item);
-			return true;
+			UsableGoodsContext->SetUsableGoods(UsableGoods);
+			// Create the new ActionBarItem
+			UActionBarItem* Item = NewObject<UActionBarItem>(this, UActionBarItem::StaticClass());
+			if (Item)
+			{
+				// Init its properties and add it to the action bar items array
+				Item->UsableGoodsContext = UsableGoodsContext;
+				ActionBarItems[SlotIndex] = Item;
+				// Fire notification
+				OnActionBarItemChanged.Broadcast(SlotIndex, Item);
+				return true;
+			}
 		}
 	}
 	else 
@@ -256,9 +289,110 @@ bool AMMPlayerController::SetActionBarItemByName(const FName& UsableGoodsName, c
 }
 
 
+void AMMPlayerController::UseActionBarItem_Implementation(const int32 SlotIndex, const FIntPoint& SelectedCoords)
+{
+	if (CurrentActionBarItemIndex >= 0 && CurrentActionBarItemIndex != SlotIndex) {
+		UE_LOG(LogMMGame, Warning, TEXT("MMPlayerController::UseActionBarItem - Cannot use item %d. A different action bar item already in use: %d."), SlotIndex, CurrentActionBarItemIndex);
+		return;
+	}
+	UActionBarItem* ActionBarItem = GetActionBarItem(SlotIndex);
+	if (ActionBarItem == nullptr) {
+		UE_LOG(LogMMGame, Warning, TEXT("MMPlayerController:UseActionBarItem - No action bar item at index %d"), SlotIndex);
+		return;
+	}
+	if (ActionBarItem->UsableGoodsContext == nullptr) { 
+		UE_LOG(LogMMGame, Warning, TEXT("MMPlayerController:UseActionBarItem - ActionBarItem %s has null UsableGoodsContext"), *ActionBarItem->GetName().ToString());
+		return; 
+	}
+	if (ActionBarItem->GetName() == NAME_None) { 
+		UE_LOG(LogMMGame, Warning, TEXT("MMPlayerController:UseActionBarItem - ActionBarItem name = NAME_None"));
+		return; 
+	}
+	if (GoodsInventory->GetGoodsCount(ActionBarItem->GetName()) < 1) { 
+		UE_LOG(LogMMGame, Warning, TEXT("MMPlayerController:UseActionBarItem - Player does not have inventory to use item %s"), *ActionBarItem->GetName().ToString());
+		return; 
+	}
+	if (ActionBarItem->UsableGoodsContext->RequiresSelection() && (SelectedCoords == FIntPoint::NoneValue || SelectedCoords.GetMin() < 0)) 
+	{
+		UE_LOG(LogMMGame, Log, TEXT("MMPlayerController:UseActionBarItem - Item %s needs selection."), *ActionBarItem->GetName().ToString());
+		GetSelectionForActionBarItem(SlotIndex);
+		return;
+	}
+	UUsableGoods* UsableGoods = ActionBarItem->UsableGoodsContext->GetUsableGoods();
+	TArray<UGameEffect*> GameEffects;
+	if (UsableGoods == nullptr) { 
+		UE_LOG(LogMMGame, Warning, TEXT("MMPlayerController:UseActionBarItem - No UsableGoods instance for ActionBarItem %s"), *ActionBarItem->GetName().ToString());
+		return; 
+	}	
+	ActionBarItem->UsableGoodsContext->GetGameEffects(GameEffects);
+	if (GoodsInventory->AddSubtractGoods(FGoodsQuantity(ActionBarItem->GetName(), -1.0f), false, true))
+	{
+		UE_LOG(LogMMGame, Log, TEXT("MMPlayerController:UseActionBarItem - Using action bar item %s at coords %s"), *ActionBarItem->GetName().ToString(), *SelectedCoords.ToString());
+		AMMGameMode* GameMode = Cast<AMMGameMode>(UGameplayStatics::GetGameMode(this));
+		if (GameMode == nullptr) { return; }
+		CurrentActionBarItemIndex = SlotIndex;
+		TArray<FIntPoint> CoordsArray;
+		CoordsArray.Add(SelectedCoords);
+		for (UGameEffect* GameEffect : GameEffects)	{
+			UE_LOG(LogMMGame, Log, TEXT("    Applying game effect %s"), *GameEffect->GetClass()->GetName());
+			GameMode->AddGameEffect(GameEffect, CoordsArray);
+		}
+	}
+	else {
+		UE_LOG(LogMMGame, Warning, TEXT("MMPlayerController:UseActionBarItem - No inventory to use action bar item %s."), *ActionBarItem->GetName().ToString());
+	}
+	CurrentActionBarItemIndex = -1;
+}
+
+
+void AMMPlayerController::GetSelectionForActionBarItem_Implementation(const int32 SlotIndex)
+{
+	if (CurrentActionBarItemIndex >= 0 && CurrentActionBarItemIndex != SlotIndex) { 
+		CancelActionBarSelection();
+	}
+	CurrentActionBarItemIndex = SlotIndex;
+	UActionBarItem* ActionBarItem = GetActionBarItem(SlotIndex);
+	if (ActionBarItem)
+	{
+		UE_LOG(LogMMGame, Log, TEXT("MMPlayerController:GetSelectionForActionBarItem - getting selection for %s."), *ActionBarItem->GetName().ToString());
+		// Add the EffectSelect input context
+		AddInputContext(EMMInputContext::EffectSelect);
+		// then  "wait" for user to make selection. Blocks/Grid handle the EffectSelect context and call ActionBarSelectionFinished()
+	}
+	else {
+		UE_LOG(LogMMGame, Warning, TEXT("MMPlayerController::GetSelectionForActionBarItem - No action bar item at index %d"), SlotIndex);
+	}
+}
+
+
+void AMMPlayerController::ActionBarSelectionFinished_Implementation(const FIntPoint& SelectedCoords)
+{
+	RemoveInputContext(EMMInputContext::EffectSelect);
+	GetCurrentGrid()->ClearUsableGoodsPreviews();
+	if (CurrentActionBarItemIndex < 0) { 
+		UE_LOG(LogMMGame, Warning, TEXT("MMPlayerController:ActionBarSelectionFinished - No current action bar item for selection."));
+		return; 
+	}
+	UE_LOG(LogMMGame, Log, TEXT("MMPlayerController:ActionBarSelectionFinished - Finished selection for item index %d"), CurrentActionBarItemIndex);
+	UseActionBarItem(CurrentActionBarItemIndex, SelectedCoords);
+	CurrentActionBarItemIndex = -1;
+}
+
+
+void AMMPlayerController::CancelActionBarSelection_Implementation()
+{
+	RemoveInputContext(EMMInputContext::EffectSelect);
+	GetCurrentGrid()->ClearUsableGoodsPreviews();
+	CurrentActionBarItemIndex = -1;
+}
+
+
 void AMMPlayerController::ClearActionBarItem(const int32 SlotIndex, const bool bFireEvents)
 {
 	UActionBarItem* Item = nullptr;
+	if (CurrentActionBarItemIndex == SlotIndex) {
+		CancelActionBarSelection();
+	}
 	if (ActionBarItems.IsValidIndex(SlotIndex)) 
 	{
 		Item = ActionBarItems[SlotIndex];

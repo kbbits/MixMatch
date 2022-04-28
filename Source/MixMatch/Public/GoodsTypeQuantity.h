@@ -26,6 +26,6 @@ public:
 	UGoodsTypeQuantity();
 
 
-	UFUNCTION(BlueprintCallable)
+	UFUNCTION(BlueprintPure)
 		FGoodsQuantity GetGoodsQuantity();
 };

@@ -43,23 +43,23 @@ bool UGameEffectSpawnBlocksBase::CanTrigger_Implementation(const TArray<FIntPoin
 	{
 		for (FIntPoint Coord : PerformCoords)
 		{
-			// Grab block at each coord. Destroy it if is valid and destrucable.
+			// Grab block at each coord. If block exists, look in next coord
 			Block = Grid->GetBlock(Coord);
-			if (Block && !Block->IsIndestructible()) {
+			if (!IsValid(Block)) {
 				return true;
 			}
 		}
 	}
 	else {
 		int32 NumCells = Grid->GetCellCount();
-		// Scan grid from bottom until we find a block that is not indestructable
+		// Scan grid from bottom until we find an empty cell
 		for (int32 i = 0; i < NumCells; i++)
 		{
 			Cell = Grid->GetCellByNumber(i);
 			if (Cell)
 			{
 				Block = Cell->CurrentBlock;
-				if (Block && !Block->IsIndestructible()) {
+				if (!IsValid(Block)) {
 					return true;
 				}
 			}

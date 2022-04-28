@@ -19,7 +19,7 @@ void AMMPawn::Tick(float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);
 	AMMPlayerController* PC = GetController<AMMPlayerController>();
-	if (PC && PC->GetLastInputContext() == EMMInputContext::InPlayGrid)
+	if (PC && (PC->GetLastInputContext() == EMMInputContext::InPlayGrid || PC->GetLastInputContext() == EMMInputContext::EffectSelect))
 	{
 		if (UHeadMountedDisplayFunctionLibrary::IsHeadMountedDisplayEnabled())
 		{
@@ -73,7 +73,7 @@ void AMMPawn::TriggerClick()
 void AMMPawn::TraceForBlock(const FVector& Start, const FVector& End, bool bDrawDebugHelpers)
 {
 	AMMPlayerController* PC = GetController<AMMPlayerController>();
-	if (PC && PC->GetLastInputContext() == EMMInputContext::InPlayGrid)
+	if (PC && (PC->GetLastInputContext() == EMMInputContext::InPlayGrid || PC->GetLastInputContext() == EMMInputContext::EffectSelect))
 	{
 		FHitResult HitResult;
 		GetWorld()->LineTraceSingleByChannel(HitResult, Start, End, ECC_Visibility);
@@ -90,10 +90,12 @@ void AMMPawn::TraceForBlock(const FVector& Start, const FVector& End, bool bDraw
 				if (IsValid(CurrentBlockFocus))
 				{
 					CurrentBlockFocus->Highlight(false);
+					PC->GridCellUnhovered(CurrentBlockFocus->GetCoords());
 				}
 				if (IsValid(HitBlock))
 				{
 					HitBlock->Highlight(true);
+					PC->GridCellHovered(HitBlock->GetCoords());
 				}
 				CurrentBlockFocus = HitBlock;
 			}
@@ -102,6 +104,7 @@ void AMMPawn::TraceForBlock(const FVector& Start, const FVector& End, bool bDraw
 		{
 			if (IsValid(CurrentBlockFocus)) {
 				CurrentBlockFocus->Highlight(false);
+				PC->GridCellUnhovered(CurrentBlockFocus->GetCoords());
 			}
 			CurrentBlockFocus = nullptr;
 		}
