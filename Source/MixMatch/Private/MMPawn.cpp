@@ -19,6 +19,7 @@ void AMMPawn::Tick(float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);
 	AMMPlayerController* PC = GetController<AMMPlayerController>();
+	// If we're in a grid or a selection is needed, trace for blocks below cursor (or HMD trace)
 	if (PC && (PC->GetLastInputContext() == EMMInputContext::InPlayGrid || PC->GetLastInputContext() == EMMInputContext::EffectSelect))
 	{
 		if (UHeadMountedDisplayFunctionLibrary::IsHeadMountedDisplayEnabled())
@@ -64,8 +65,7 @@ void AMMPawn::OnResetVR()
 
 void AMMPawn::TriggerClick()
 {
-	if (CurrentBlockFocus)
-	{
+	if (CurrentBlockFocus){
 		CurrentBlockFocus->HandleClicked();
 	}
 }
@@ -102,7 +102,8 @@ void AMMPawn::TraceForBlock(const FVector& Start, const FVector& End, bool bDraw
 		}
 		else if (CurrentBlockFocus)
 		{
-			if (IsValid(CurrentBlockFocus)) {
+			if (IsValid(CurrentBlockFocus)) 
+			{
 				CurrentBlockFocus->Highlight(false);
 				PC->GridCellUnhovered(CurrentBlockFocus->GetCoords());
 			}

@@ -84,7 +84,7 @@ public:
 
 	/** Set the current level of the recipe. 
 	 *  Note: Setting recipe level to <= 0 means the recipe is locked (unavailable) for the player.
-	 *        Setting it to > 0 means the recipe is unlocked (available) for the player. */
+	 *        Setting it to >= 1 means the recipe is unlocked (available) for the player. */
 	UFUNCTION(BlueprintCallable)
 	void SetRecipeLevel(const FName& RecipeName, const int32 NewLevel);
 

@@ -176,7 +176,7 @@ void AMMPlayerController::GridCellUnhovered_Implementation(const FIntPoint Unhov
 
 void AMMPlayerController::CollectGoods(const TArray<FGoodsQuantity> CollectedGoods)
 {
-	GoodsInventory->ServerAddSubtractGoodsArray(CollectedGoods, false, true);
+	GoodsInventory->AddSubtractGoodsArray(CollectedGoods, false, true);
 	UGoodsFunctionLibrary::AddToGoodsQuantities(TotalGoodsCollected, CollectedGoods);
 	OnGoodsCollected.Broadcast(CollectedGoods);
 }

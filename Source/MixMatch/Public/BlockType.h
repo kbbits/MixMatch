@@ -307,7 +307,7 @@ public:
 	UPROPERTY(BlueprintReadWrite)
 	bool bPreventMatches = false;
 
-	/** This add is for the initial filling of the grid at start */
+	/** This add context is for the initial filling of the grid at start */
 	UPROPERTY(BlueprintReadWrite)
 	bool bForInitialFill = false;
 

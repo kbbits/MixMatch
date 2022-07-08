@@ -41,6 +41,11 @@ void ARecipePlayGrid::StopPlayGrid_Implementation()
 		InputGoodsInventory->ClearAllInventory();
 		GoodsInventory->ClearAllInventory();
 	}
+	// Tell game mode to end all effects since grid play has stopped.
+	AMMGameMode* GameMode = Cast<AMMGameMode>(UGameplayStatics::GetGameMode(this));
+	if (GameMode) {
+		GameMode->EndAllActiveGameEffects();
+	}
 }
 
 

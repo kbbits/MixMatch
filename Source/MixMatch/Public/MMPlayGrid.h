@@ -293,7 +293,8 @@ public:
 	UFUNCTION(BlueprintCallable)
 	virtual AMMBlock* AddRandomBlockInCell(const FAddBlockContext& BlockContext);
 		
-	/** Drop a random block from above grid, to fall into given cell.*/
+	/** Drop a random blocks from above grid, to fall into given cell.
+	 *  This will drop enough blocks to fill the available empty space in the column. */
 	UFUNCTION(BlueprintCallable)
 	AMMBlock* DropRandomBlockInColumn(UPARAM(ref) AMMPlayGridCell* Cell);
 

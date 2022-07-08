@@ -23,7 +23,7 @@ AMMBlock::AMMBlock()
 		ConstructorHelpers::FObjectFinderOptional<UMaterialInterface> BaseMaterial;
 		ConstructorHelpers::FObjectFinderOptional<UMaterialInterface> AltMaterial;
 		FConstructorStatics()
-			: PlaneMesh(TEXT("/Game/MixMatch/Assets/Meshes/PuzzleCube.PuzzleCube"))
+			: PlaneMesh(TEXT("/Game/MixMatch/Assets/Meshes/Blocks/PuzzleCube.PuzzleCube"))
 			, BaseMaterial(TEXT("/Game/MixMatch/Assets/Materials/BlockBase_M.BlockBase_M"))
 			, AltMaterial(TEXT("/Game/MixMatch/Assets/Materials/BlockBase_M.BlockBase_M"))
 		{
@@ -147,19 +147,19 @@ bool AMMBlock::SettleTick_Implementation(float DeltaSeconds)
 		{
 			AMMPlayGridCell* TopCell = Grid()->GetTopCell(Cell()->X);
 			check(TopCell);
+			// Try to occupy our SettleToGridCell
+			if (SettleToGridCell) {
+				ChangeOwningGridCell(SettleToGridCell);
+			}
 			// Check if block is low enough to no longer be "falling into grid"
 			if (GetRelativeLocation().Z <= (TopCell->GetBlockLocalLocation().Z + FMath::Max(Grid()->NewBlockDropInHeight, 10.f))) 
 			{
 				bFallingIntoGrid = false;
 				Grid()->BlocksFallingIntoGrid[GetCoords().X].Blocks.RemoveSingle(this);
-				// If we are low enough try to occupy our cell if we aren't already. (cell should be the top cell of the column)
-				if (SettleToGridCell) {
-					ChangeOwningGridCell(SettleToGridCell);
-				}
 			}
 		}
 		// Check if we're done settling/moving
-		if (TargetDistance <= 1.f)
+		if (TargetDistance <= 1.0f)
 		{
 			// Re-check our settle location
 			AMMPlayGridCell* SettleCell = FindSettleCell();
@@ -202,7 +202,7 @@ bool AMMBlock::SettleTick_Implementation(float DeltaSeconds)
 			SetActorRelativeLocation(GetRelativeLocation() + (FMath::Min(MoveSpeed * DeltaSeconds, TargetDistance) * DirVector));
 		}
 		// Sanity check. Shouldn't be needed....
-		if (BlockSettleFails >= 100)
+		if (BlockSettleFails >= 1)
 		{
 			UE_LOG(LogMMGame, Error, TEXT("MMBlock::SettleTick - Block %s at %s failed to settle after %d tries"), *GetName(), *Cell()->GetCoords().ToString(), BlockSettleFails);
 			Grid()->DebugBlocks("SettleTick Failed");
@@ -304,9 +304,24 @@ AMMPlayGridCell* AMMBlock::FindSettleCell()
 	// Determine where to settle to
 	if (Grid())
 	{
-		// Always try to settle to cell directly below current cell
-		AMMPlayGridCell* NextCell = Grid()->GetCell(GetCoords() + FIntPoint(0, -1));
-		if (NextCell && !IsValid(NextCell->CurrentBlock)) {
+		if (bFallingIntoGrid)
+		{
+			// Always try to settle to cell directly below current cell
+			AMMPlayGridCell* NextCell = Grid()->GetCell(GetCoords() + FIntPoint(0, -1));
+			if (NextCell && !IsValid(NextCell->CurrentBlock)) {
+				return NextCell;
+			}
+		}
+		else 
+		{
+			// Look at cells below this one until we find a cell that has a valid block below it.
+			AMMPlayGridCell* BelowCell = Grid()->GetCell(GetCoords() + FIntPoint(0, -1));
+			AMMPlayGridCell* NextCell = nullptr;
+			while (BelowCell && !IsValid(BelowCell->CurrentBlock))
+			{
+				NextCell = BelowCell;
+				BelowCell = Grid()->GetCell(BelowCell->GetCoords() + FIntPoint(0, -1));
+			}
 			return NextCell;
 		}
 	}	
@@ -499,11 +514,37 @@ void AMMBlock::OnUnsettle_Implementation()
 	}
 	if (CanMove() && !IsMatched()) {
 		bUnsettled = true;
-		UE_CLOG(bDebugLog, LogMMGame, Log, TEXT("Unsettling block %s at %s"), *GetName(), *GetCoords().ToString())
-		if (SettleFallDelay > 0) {
-			GetWorldTimerManager().SetTimer(SettleFallDelayHandle, this, &AMMBlock::OnSettle, SettleFallDelay, false);
+		float TmpSettleFallDelay = SettleFallDelay;
+		FIntPoint MyCoords = GetCoords();
+		if (SettleFallDelay > 0) {			
+			// Decrease fall delay a small amount for each block already unsettled below this one.
+			/*for (int32 i = 0; i < MyCoords.Y; i++) 
+			{
+				AMMBlock* TmpBlock = Grid()->GetBlock(FIntPoint(MyCoords.X, i));
+				if (IsValid(TmpBlock) && TmpBlock->bUnsettled) {
+					TmpSettleFallDelay *= 0.75f;
+				}
+			}
+			if (bFallingIntoGrid)
+			{
+				for (int32 i = 0; i < Grid()->BlocksFallingIntoGrid[MyCoords.X].Blocks.Num(); i++) 
+				{
+					if (Grid()->BlocksFallingIntoGrid[MyCoords.X].Blocks[i] == this) {
+						break;
+					}
+					TmpSettleFallDelay *= 0.5f;
+				}
+			}
+			*/
+		}
+		// Only delay settling if time is greater than threshold
+		if (TmpSettleFallDelay > 0.03f)
+		{
+			UE_CLOG(bDebugLog, LogMMGame, Log, TEXT("Setting timer to unsettle block %s at %s in %.3f seconds"), *GetName(), *GetCoords().ToString(), TmpSettleFallDelay);
+			GetWorldTimerManager().SetTimer(SettleFallDelayHandle, this, &AMMBlock::OnSettle, TmpSettleFallDelay, false);
 		}
 		else {
+			UE_CLOG(bDebugLog, LogMMGame, Log, TEXT("Unsettling block %s at %s with no delay"), *GetName(), *GetCoords().ToString());
 			OnSettle();
 		}
 	}
@@ -527,15 +568,15 @@ void AMMBlock::OnSettle_Implementation()
 	BlockSettleFails = 0;
 	AMMPlayGridCell* SettleCell = nullptr;
 	
-	UE_CLOG(bDebugLog, LogMMGame, Log, TEXT("Settling block %s from %s"), *GetName(), *GetCoords().ToString());
+	UE_CLOG(bDebugLog, LogMMGame, Log, TEXT("OnSettle - block %s from %s"), *GetName(), *GetCoords().ToString());
 	if (bFallingIntoGrid)
 	{
 		bMoveSuccessful = true;
-		// Immediately queue the next falling block to unsettle
-		Grid()->UnsettleBlockAboveCell(Cell());
 		if (SettleToGridCell != nullptr) {
 			ChangeOwningGridCell(SettleToGridCell);
 		}
+		// Immediately queue the next falling block to unsettle
+		Grid()->UnsettleBlockAboveCell(Cell());
 	}
 	else 
 	{
@@ -657,11 +698,10 @@ FVector AMMBlock::GetRelativeLocation()
 }
 
 
-void AMMBlock::UpdateBlockVis()
+void AMMBlock::UpdateBlockVis_Implementation()
 {
 	FLinearColor Color = GetBlockType().PrimaryColor;
-	if (bIsHighlighted)
-	{
+	if (bIsHighlighted)	{
 		Color = GetBlockType().AltColor;
 	}
 	if (!IsValid(BaseMatDynamic)) 

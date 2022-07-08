@@ -114,16 +114,16 @@ protected:
 	/** Our timer handle for the delay between block unsettled to block begins settling. */
 	FTimerHandle SettleFallDelayHandle;
 
-	UPROPERTY()
+	UPROPERTY(BlueprintReadWrite)
 	class UMaterialInstanceDynamic* BaseMatDynamic = nullptr;
-	UPROPERTY()
+	UPROPERTY(BlueprintReadWrite)
 	class UMaterialInstanceDynamic* AltMatDynamic = nullptr;
 
 	/** Some basic protection for errors when attempting to settle this block */
 	int32 BlockSettleFails = 0;
 
 	/** Output verbose logging for blocks */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Block)
 	bool bDebugLog = true;
 
 private:
@@ -288,7 +288,8 @@ public:
 	FVector GetRelativeLocation();
 
 protected:
-		
+	
+	UFUNCTION(BlueprintNativeEvent)
 	void UpdateBlockVis();
 
 	virtual void BeginPlay() override;

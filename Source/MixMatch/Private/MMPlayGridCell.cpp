@@ -16,7 +16,7 @@ AMMPlayGridCell::AMMPlayGridCell()
 		ConstructorHelpers::FObjectFinderOptional<UMaterialInterface> BaseMaterial;
 		ConstructorHelpers::FObjectFinderOptional<UMaterialInterface> AltMaterial;
 		FConstructorStatics()
-			: PlaneMesh(TEXT("/Game/MixMatch/Assets/Meshes/PuzzleCube.PuzzleCube"))
+			: PlaneMesh(TEXT("/Game/MixMatch/Assets/Meshes/Blocks/PuzzleCube.PuzzleCube"))
 			, BaseMaterial(TEXT("/Game/MixMatch/Assets/Materials/CellBase_M.CellBase_M"))	
 			, AltMaterial(TEXT("/Game/MixMatch/Assets/Materials/CellHighlight_MI.CellHighlight_MI"))
 		{

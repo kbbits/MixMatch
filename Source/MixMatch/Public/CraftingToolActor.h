@@ -39,10 +39,9 @@ public:
 	float GridMarginH = 0.f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	float GridMarginV = 0.f;
+	float GridMarginV = 20.f;
 
-	/** The grid this tool is working with.
-	 *  TODO: Is this needed?  */
+	/** The grid this tool is working with.*/	 
 	UPROPERTY(BlueprintReadWrite)
 	class AMMPlayGrid* CurrentGrid;
 
